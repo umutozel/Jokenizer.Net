@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading;
 
 namespace Jokenizer.Net {
 
@@ -11,8 +12,7 @@ namespace Jokenizer.Net {
         private int idx = 0;
 
         private static char[] unary = { '-', '+', '!', '~' };
-        private static Dictionary <string, (int, ExpressionType)> binary = new Dictionary <string, (int, ExpressionType)> { 
-            { "&&", (0, ExpressionType.And) },
+        private static Dictionary < string, (int Precedence, ExpressionType Type) > binary = new Dictionary < string, (int, ExpressionType) > { { "&&", (0, ExpressionType.And) },
             { "||", (0, ExpressionType.OrElse) },
             { "??", (0, ExpressionType.Coalesce) },
             { "|", (1, ExpressionType.Or) },
@@ -32,10 +32,13 @@ namespace Jokenizer.Net {
             { "/", (6, ExpressionType.Divide) },
             { "%", (6, ExpressionType.Modulo) }
         };
+        private static string separator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
 
         private Tokenize(string exp) {
-            if (string.IsNullOrWhiteSpace(exp))
+            if (exp == null)
                 throw new ArgumentNullException(nameof(exp));
+            if (string.IsNullOrWhiteSpace(exp))
+                throw new ArgumentException(nameof(exp));
 
             this.exp = exp;
             this.len = exp.Length;
@@ -52,11 +55,45 @@ namespace Jokenizer.Net {
         private char Ch => exp[idx];
 
         Expression GetExpression() {
-            throw new NotImplementedException();
+            Skip();
+
+            Expression e = TryLiteral() 
+                ?? TryVariable()
+                ?? TryUnary()
+                ?? TryGroup()
+                ?? TryObject()
+                ?? TryArray();
+
+            if (e == null) return e;
+
+            Expression r;
+            do {
+                Skip();
+
+                r = e;
+                e = TryMember(e)
+                    ?? TryIndexer(e)
+                    ?? TryLambda(e)
+                    ?? TryCall(e)
+                    ?? TryKnown(e)
+                    ?? TryTernary(e)
+                    ?? TryBinary(e);
+            } while (e != null);
+
+            return r;
         }
 
         Expression TryLiteral() {
-            throw new NotImplementedException();
+
+            ConstantExpression TryNumber() {
+                return null;
+            }
+
+            ConstantExpression TryString() {
+                return null;
+            }
+
+            return TryNumber() ?? TryString();
         }
 
         Expression TryVariable() {
@@ -79,31 +116,31 @@ namespace Jokenizer.Net {
             throw new NotImplementedException();
         }
 
-        Expression TryBinary() {
+        Expression TryBinary(Expression e) {
             throw new NotImplementedException();
         }
 
-        Expression TryMember() {
+        Expression TryMember(Expression e) {
             throw new NotImplementedException();
         }
 
-        Expression TryIndexer() {
+        Expression TryIndexer(Expression e) {
             throw new NotImplementedException();
         }
 
-        Expression TryLambda() {
+        Expression TryLambda(Expression e) {
             throw new NotImplementedException();
         }
 
-        Expression TryCall() {
+        Expression TryCall(Expression e) {
             throw new NotImplementedException();
         }
 
-        Expression TryTernary() {
+        Expression TryTernary(Expression e) {
             throw new NotImplementedException();
         }
 
-        Expression TryKnown() {
+        Expression TryKnown(Expression e) {
             throw new NotImplementedException();
         }
 
@@ -116,17 +153,17 @@ namespace Jokenizer.Net {
             return false;
         }
 
-        void Move(int count = 1) {
+        bool Move(int count = 1) {
             idx += count;
+            return idx < len;
         }
 
-        string Nxt() {
-            Move();
-            return idx < len ? Ch.ToString() : null;
+        (char ch, bool done) Nxt() {
+            return Move() ? (Ch, false) : ('\0', true);
         }
 
         void Skip() {
-            while (IsSpace(Ch)) Move();
+            while (Char.IsWhiteSpace(Ch) && Move());
         }
 
         void To(string c) {
@@ -142,31 +179,23 @@ namespace Jokenizer.Net {
             return source.Substring(idx, target.Length) == target;
         }
 
-        bool IsSpace(char ch) {
-            return Char.IsWhiteSpace(ch);
-        }
-
-        bool IsNumber(char c) {
-            return (c >= 48 && c <= 57);
-        }
-
         bool IsVariableStart(char c) {
-            return (c == 36) || (c == 95) || // `$`, `_`
+            return (c == 95) || // `_`
                 (c >= 65 && c <= 90) || // A...Z
                 (c >= 97 && c <= 122); // a...z
         }
 
-        bool stillVariable(char c) {
-            return IsVariableStart(c) || IsNumber(c);
+        bool StillVariable(char c) {
+            return IsVariableStart(c) || Char.IsNumber(c);
         }
 
         Expression FixPrecedence(Expression left, string leftOp, BinaryExpression right) {
             var p1 = Tokenize.binary[leftOp];
-            var p2 = Tokenize.binary.First(b => b.Value.Item2 == right.NodeType).Value;
+            var p2 = Tokenize.binary.First(b => b.Value.Type == right.NodeType).Value;
 
-            return p2.Item1 < p1.Item1
-                ? Expression.MakeBinary(p2.Item2, Expression.MakeBinary(p1.Item2, left, right.Left), right.Right)
-                : Expression.MakeBinary(p1.Item2, left, right);
+            return p2.Precedence < p1.Precedence ?
+                Expression.MakeBinary(p2.Type, Expression.MakeBinary(p1.Type, left, right.Left), right.Right) :
+                Expression.MakeBinary(p1.Type, left, right);
         }
     }
 }
