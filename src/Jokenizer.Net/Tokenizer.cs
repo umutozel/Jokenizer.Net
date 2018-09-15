@@ -89,7 +89,6 @@ namespace Jokenizer.Net {
             Expression e = TryLiteral() ??
                 TryVariable() ??
                 TryUnary() ??
-                TryGroup() ??
                 TryObject() ??
                 TryArray();
 
@@ -259,10 +258,6 @@ namespace Jokenizer.Net {
                 return Expression.MakeUnary(e, GetExp(), null);
             }
 
-            return null;
-        }
-
-        Expression TryGroup() {
             return null;
         }
 

@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using System.Linq.Expressions;
+using Jokenizer.Net.Tests.Fixture;
 using Xunit;
 
 namespace Jokenizer.Net.Tests {
@@ -62,6 +64,21 @@ namespace Jokenizer.Net.Tests {
 
             var oe = e.Operand as MemberExpression;
             Assert.Equal("IsActive", oe.Member.Name);
+        }
+
+        [Fact]
+        public void ShouldReturnNewExpression() {
+            var e = Tokenizer.Parse<NewExpression>("new { a = 4, b }", new { b = 2 });
+
+            Assert.Equal(2, e.Arguments.Count);
+            Assert.Equal(ExpressionType.Constant, e.Arguments[0].NodeType);
+            Assert.Equal(4, ((ConstantExpression)e.Arguments[0]).Value);
+            Assert.Equal(ExpressionType.Constant, e.Arguments[1].NodeType);
+            Assert.Equal(2, ((ConstantExpression)e.Arguments[0]).Value);
+
+            Assert.Equal(2, e.Members.Count);
+            Assert.Equal("a", e.Members[0].Name);
+            Assert.Equal("b", e.Members[1].Name);
         }
     }
 }
