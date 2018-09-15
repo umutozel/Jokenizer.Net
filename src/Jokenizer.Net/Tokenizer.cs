@@ -57,27 +57,27 @@ namespace Jokenizer.Net {
         Expression GetExp() {
             Skip();
 
-            Expression e = TryLiteral() 
-                ?? TryVariable()
-                ?? TryUnary()
-                ?? TryGroup()
-                ?? TryObject()
-                ?? TryArray();
+            Expression e = TryLiteral() ??
+                TryVariable() ??
+                TryUnary() ??
+                TryGroup() ??
+                TryObject() ??
+                TryArray();
 
-            if (Done() || e == null) return e;
+            if (Done() ||  e == null) return e;
 
             Expression r;
             do {
                 Skip();
 
                 r = e;
-                e = TryMember(e)
-                    ?? TryIndexer(e)
-                    ?? TryLambda(e)
-                    ?? TryCall(e)
-                    ?? TryKnown(e)
-                    ?? TryTernary(e)
-                    ?? TryBinary(e);
+                e = TryMember(e) ??
+                    TryIndexer(e) ??
+                    TryLambda(e) ??
+                    TryCall(e) ??
+                    TryKnown(e) ??
+                    TryTernary(e) ??
+                    TryBinary(e);
             } while (e != null);
 
             return r;
@@ -111,7 +111,7 @@ namespace Jokenizer.Net {
                     return Expression.Constant(val, val.GetType());
                 }
 
-                return null;            
+                return null;
             }
 
             Expression tryString() {
@@ -136,7 +136,7 @@ namespace Jokenizer.Net {
                             }
 
                             return es.Aggregate(
-                                (Expression)Expression.Constant(""),
+                                (Expression) Expression.Constant(""),
                                 (p, n) => Expression.MakeBinary(ExpressionType.Add, p, n)
                             );
                         }
@@ -147,20 +147,41 @@ namespace Jokenizer.Net {
                     if (c == '\\') {
                         c = Move();
                         switch (c) {
-                            case 'a': s += '\a'; break;
-                            case 'b': s += '\b'; break;
-                            case 'f': s += '\f'; break;
-                            case 'n': s += '\n'; break;
-                            case 'r': s += '\r'; break;
-                            case 't': s += '\t'; break;
-                            case 'v': s += '\v'; break;
-                            case '0': s += '\0'; break;
-                            case '\\': s += '\\'; break;
-                            case '"': s += '"'; break;
-                            default: s += '\\' + c; break;
+                            case 'a':
+                                s += '\a';
+                                break;
+                            case 'b':
+                                s += '\b';
+                                break;
+                            case 'f':
+                                s += '\f';
+                                break;
+                            case 'n':
+                                s += '\n';
+                                break;
+                            case 'r':
+                                s += '\r';
+                                break;
+                            case 't':
+                                s += '\t';
+                                break;
+                            case 'v':
+                                s += '\v';
+                                break;
+                            case '0':
+                                s += '\0';
+                                break;
+                            case '\\':
+                                s += '\\';
+                                break;
+                            case '"':
+                                s += '"';
+                                break;
+                            default:
+                                s += '\\' + c;
+                                break;
                         }
-                    } 
-                    else if (inter && Get("${")) {
+                    } else if (inter && Get("${")) {
                         if (s != "") {
                             es.Add(Expression.Constant(s));
                             s = "";
@@ -182,51 +203,51 @@ namespace Jokenizer.Net {
         }
 
         Expression TryVariable() {
-            throw new NotImplementedException();
+            return null;
         }
 
         Expression TryUnary() {
-            throw new NotImplementedException();
+            return null;
         }
 
         Expression TryGroup() {
-            throw new NotImplementedException();
+            return null;
         }
 
         Expression TryObject() {
-            throw new NotImplementedException();
+            return null;
         }
 
         Expression TryArray() {
-            throw new NotImplementedException();
+            return null;
         }
 
         Expression TryBinary(Expression e) {
-            throw new NotImplementedException();
+            return null;
         }
 
         Expression TryMember(Expression e) {
-            throw new NotImplementedException();
+            return null;
         }
 
         Expression TryIndexer(Expression e) {
-            throw new NotImplementedException();
+            return null;
         }
 
         Expression TryLambda(Expression e) {
-            throw new NotImplementedException();
+            return null;
         }
 
         Expression TryCall(Expression e) {
-            throw new NotImplementedException();
+            return null;
         }
 
         Expression TryTernary(Expression e) {
-            throw new NotImplementedException();
+            return null;
         }
 
         Expression TryKnown(Expression e) {
-            throw new NotImplementedException();
+            return null;
         }
 
         bool IsSpace() {
