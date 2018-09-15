@@ -6,10 +6,11 @@ using System.Threading;
 
 namespace Jokenizer.Net {
 
-    public class Tokenize {
+    public class Tokenizer {
         private readonly string exp;
         private readonly int len;
         private int idx = 0;
+        private char ch;
 
         private static char[] unary = { '-', '+', '!', '~' };
         private static Dictionary < string, (int Precedence, ExpressionType Type) > binary = new Dictionary < string, (int, ExpressionType) > { { "&&", (0, ExpressionType.And) },
@@ -34,7 +35,7 @@ namespace Jokenizer.Net {
         };
         private static string separator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
 
-        private Tokenize(string exp) {
+        private Tokenizer(string exp) {
             if (exp == null)
                 throw new ArgumentNullException(nameof(exp));
             if (string.IsNullOrWhiteSpace(exp))
@@ -42,19 +43,18 @@ namespace Jokenizer.Net {
 
             this.exp = exp;
             this.len = exp.Length;
+            ch = exp.ElementAt(0);
         }
 
-        public static Expression From(string exp) {
-            return new Tokenize(exp).GetExpression();
+        public static Expression Parse(string exp) {
+            return new Tokenizer(exp).GetExp();
         }
 
-        public static Expression From<T>(string exp) where T : Expression {
-            return (T) From(exp);
+        public static T Parse<T>(string exp) where T : Expression {
+            return (T) Parse(exp);
         }
 
-        private char Ch => exp[idx];
-
-        Expression GetExpression() {
+        Expression GetExp() {
             Skip();
 
             Expression e = TryLiteral() 
@@ -64,7 +64,7 @@ namespace Jokenizer.Net {
                 ?? TryObject()
                 ?? TryArray();
 
-            if (e == null) return e;
+            if (Done() || e == null) return e;
 
             Expression r;
             do {
@@ -85,15 +85,40 @@ namespace Jokenizer.Net {
 
         Expression TryLiteral() {
 
-            ConstantExpression TryNumber() {
+            ConstantExpression tryNumber() {
+                var n = "";
+
+                void x() {
+                    while (Char.IsNumber(ch)) {
+                        n += ch;
+                        Move();
+                    }
+                }
+
+                x();
+                bool isFloat = false;
+                if (Get(separator)) {
+                    n += separator;
+                    x();
+                    isFloat = true;
+                }
+
+                if (n != "") {
+                    if (IsVariableStart())
+                        throw new Exception($"Unexpected character (${ch}) at index ${idx}");
+
+                    var val = isFloat ? float.Parse(n) : int.Parse(n);
+                    return Expression.Constant(val, val.GetType());
+                }
+
+                return null;            
+            }
+
+            ConstantExpression tryString() {
                 return null;
             }
 
-            ConstantExpression TryString() {
-                return null;
-            }
-
-            return TryNumber() ?? TryString();
+            return tryNumber() ?? tryString();
         }
 
         Expression TryVariable() {
@@ -144,8 +169,36 @@ namespace Jokenizer.Net {
             throw new NotImplementedException();
         }
 
+        bool IsSpace() {
+            return Char.IsWhiteSpace(ch);
+        }
+
+        bool IsNumber() {
+            return char.IsNumber(ch);
+        }
+
+        bool IsVariableStart() {
+            return (ch == 95) || // `_`
+                (ch >= 65 && ch <= 90) || // A...Z
+                (ch >= 97 && ch <= 122); // a...z
+        }
+
+        bool StillVariable(char c) {
+            return IsVariableStart() || Char.IsNumber(ch);
+        }
+
+        bool Done() {
+            return idx >= len;
+        }
+
+        char Move(int count = 1) {
+            idx += count;
+            var d = Done();
+            return ch = d ? '\0' : exp.ElementAt(idx);
+        }
+
         bool Get(string s) {
-            if (Eq(exp, idx, s)) {
+            if (Eq(idx, s)) {
                 Move(s.Length);
                 return true;
             }
@@ -153,45 +206,27 @@ namespace Jokenizer.Net {
             return false;
         }
 
-        bool Move(int count = 1) {
-            idx += count;
-            return idx < len;
-        }
-
-        (char ch, bool done) Nxt() {
-            return Move() ? (Ch, false) : ('\0', true);
-        }
-
         void Skip() {
-            while (Char.IsWhiteSpace(Ch) && Move());
+            while (IsSpace()) Move();
+        }
+
+        bool Eq(int idx, string target) {
+            if (idx + target.Length > exp.Length) return false;
+            return exp.Substring(idx, target.Length) == target;
         }
 
         void To(string c) {
             Skip();
 
-            if (!Eq(exp, idx, c))
+            if (!Eq(idx, c))
                 throw new Exception($"Expected {c} at index {idx}, found {exp[idx]}");
 
             Move(c.Length);
         }
 
-        static bool Eq(string source, int idx, string target) {
-            return source.Substring(idx, target.Length) == target;
-        }
-
-        bool IsVariableStart(char c) {
-            return (c == 95) || // `_`
-                (c >= 65 && c <= 90) || // A...Z
-                (c >= 97 && c <= 122); // a...z
-        }
-
-        bool StillVariable(char c) {
-            return IsVariableStart(c) || Char.IsNumber(c);
-        }
-
         Expression FixPrecedence(Expression left, string leftOp, BinaryExpression right) {
-            var p1 = Tokenize.binary[leftOp];
-            var p2 = Tokenize.binary.First(b => b.Value.Type == right.NodeType).Value;
+            var p1 = Tokenizer.binary[leftOp];
+            var p2 = Tokenizer.binary.First(b => b.Value.Type == right.NodeType).Value;
 
             return p2.Precedence < p1.Precedence ?
                 Expression.MakeBinary(p2.Type, Expression.MakeBinary(p1.Type, left, right.Left), right.Right) :
