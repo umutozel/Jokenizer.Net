@@ -7,13 +7,14 @@ using System.Threading;
 namespace Jokenizer.Net {
 
     public class Tokenizer {
-        private readonly string exp;
-        private readonly int len;
-        private int idx = 0;
-        private char ch;
-
-        private static char[] unary = { '-', '+', '!', '~' };
-        private static Dictionary < string, (int Precedence, ExpressionType Type) > binary = new Dictionary < string, (int, ExpressionType) > { { "&&", (0, ExpressionType.And) },
+        private static Dictionary<char, ExpressionType> unary = new Dictionary<char, ExpressionType> { 
+            { '-', ExpressionType.Negate },
+            { '+', ExpressionType.UnaryPlus },
+            { '!', ExpressionType.Not },
+            { '~', ExpressionType.OnesComplement }
+        };
+        private static Dictionary <string, (int Precedence, ExpressionType Type) > binary = new Dictionary < string, (int, ExpressionType) > { 
+            { "&&", (0, ExpressionType.And) },
             { "||", (0, ExpressionType.OrElse) },
             { "??", (0, ExpressionType.Coalesce) },
             { "|", (1, ExpressionType.Or) },
@@ -33,9 +34,21 @@ namespace Jokenizer.Net {
             { "/", (6, ExpressionType.Divide) },
             { "%", (6, ExpressionType.Modulo) }
         };
+        private static Dictionary<string, object> knowns = new Dictionary<string, object> { { "true", true },
+            { "false", false },
+            { "null", null }
+        };
         private static string separator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
 
-        private Tokenizer(string exp) {
+        private readonly string exp;
+        private readonly int len;
+        private readonly Stack<ConstantExpression> these;
+        private readonly IDictionary<string, object> externals;
+        private int idx = 0;
+        private char ch;
+        private ConstantExpression @this => these.Peek(); 
+
+        private Tokenizer(string exp, object @this, IDictionary<string, object> externals = null) {
             if (exp == null)
                 throw new ArgumentNullException(nameof(exp));
             if (string.IsNullOrWhiteSpace(exp))
@@ -43,15 +56,31 @@ namespace Jokenizer.Net {
 
             this.exp = exp;
             this.len = exp.Length;
+
+            this.these = new Stack<ConstantExpression>(new []  { Expression.Constant(@this) });
+            this.externals = externals ?? new Dictionary<string, object>();
+
             ch = exp.ElementAt(0);
         }
 
-        public static Expression Parse(string exp) {
-            return new Tokenizer(exp).GetExp();
+        public static Expression Parse(string exp, params object[] parameters) {
+            var i = -1;
+            var externals = parameters.ToDictionary(p =>(i++).ToString());
+            return new Tokenizer(exp, null, externals).GetExp();
         }
 
-        public static T Parse<T>(string exp) where T : Expression {
-            return (T) Parse(exp);
+        public static T Parse<T>(string exp, params object[] parameters) where T : Expression {
+            return (T) Parse(exp, null, parameters);
+        }
+
+        public static Expression Parse(string exp, object @this, params object[] parameters) {
+            var i = -1;
+            var externals = parameters.ToDictionary(p =>(i++).ToString());
+            return new Tokenizer(exp, @this, externals).GetExp();
+        }
+
+        public static T Parse<T>(string exp, object @this, params object[] parameters) where T : Expression {
+            return (T) Parse(exp, @this, parameters);
         }
 
         Expression GetExp() {
@@ -203,10 +232,33 @@ namespace Jokenizer.Net {
         }
 
         Expression TryVariable() {
-            return null;
+            var v = "";
+
+            Get("@");
+
+            if (IsVariableStart()) {
+                do {
+                    v += ch;
+                    Move();
+                } while (StillVariable());
+            }
+
+            if (v == "") return null;
+            if (knowns.TryGetValue(v, out var known))
+                return Expression.Constant(known);
+
+            if (externals.TryGetValue(v, out var external))
+                return Expression.Constant(external);
+
+            return Expression.PropertyOrField(@this, v);
         }
 
         Expression TryUnary() {
+            if (unary.TryGetValue(ch, out var e)) {
+                Move();
+                return Expression.MakeUnary(e, GetExp(), null);
+            }
+
             return null;
         }
 
@@ -264,7 +316,7 @@ namespace Jokenizer.Net {
                 (ch >= 97 && ch <= 122); // a...z
         }
 
-        bool StillVariable(char c) {
+        bool StillVariable() {
             return IsVariableStart() || Char.IsNumber(ch);
         }
 

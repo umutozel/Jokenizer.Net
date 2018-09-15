@@ -49,13 +49,13 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldReturnVariableExpression() {
-            var e = Tokenizer.Parse<MemberExpression>("Name");
+            var e = Tokenizer.Parse<MemberExpression>("Name", new { Name = "Rick" });
             Assert.Equal("Name", e.Member.Name);
         }
 
         [Fact]
         public void ShouldReturnUnaryExpression() {
-            var e = Tokenizer.Parse<UnaryExpression>("!IsActive");
+            var e = Tokenizer.Parse<UnaryExpression>("!IsActive", new { IsActive = false });
 
             Assert.Equal(ExpressionType.Not, e.NodeType);
             Assert.Equal(ExpressionType.MemberAccess, e.Operand.NodeType);
