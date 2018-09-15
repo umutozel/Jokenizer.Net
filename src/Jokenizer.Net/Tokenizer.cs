@@ -114,8 +114,68 @@ namespace Jokenizer.Net {
                 return null;            
             }
 
-            ConstantExpression tryString() {
-                return null;
+            Expression tryString() {
+                bool inter = false;
+                if (ch == '$') {
+                    inter = true;
+                    Move();
+                }
+                if (ch != '"') return null;
+
+                var q = ch;
+                var es = new List<Expression>();
+                var s = "";
+
+                for (char c = Move(); !Done(); c = Move()) {
+                    if (c == q) {
+                        Move();
+
+                        if (es.Count > 0) {
+                            if (s != "") {
+                                es.Add(Expression.Constant(s));
+                            }
+
+                            return es.Aggregate(
+                                (Expression)Expression.Constant(""),
+                                (p, n) => Expression.MakeBinary(ExpressionType.Add, p, n)
+                            );
+                        }
+
+                        return Expression.Constant(s);
+                    }
+
+                    if (c == '\\') {
+                        c = Move();
+                        switch (c) {
+                            case 'a': s += '\a'; break;
+                            case 'b': s += '\b'; break;
+                            case 'f': s += '\f'; break;
+                            case 'n': s += '\n'; break;
+                            case 'r': s += '\r'; break;
+                            case 't': s += '\t'; break;
+                            case 'v': s += '\v'; break;
+                            case '0': s += '\0'; break;
+                            case '\\': s += '\\'; break;
+                            case '"': s += '"'; break;
+                            default: s += '\\' + c; break;
+                        }
+                    } 
+                    else if (inter && Get("${")) {
+                        if (s != "") {
+                            es.Add(Expression.Constant(s));
+                            s = "";
+                        }
+                        es.Add(GetExp());
+
+                        Skip();
+                        if (ch != '}')
+                            throw new Exception($"Unterminated template literal at {idx}");
+                    } else {
+                        s += c;
+                    }
+                }
+
+                throw new Exception($"Unclosed quote after {s}");
             }
 
             return tryNumber() ?? tryString();

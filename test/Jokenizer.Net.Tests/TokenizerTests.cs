@@ -26,13 +26,13 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldReturnStringConstantExpression() {
-            var e1 = Tokenizer.Parse<ConstantExpression>("'4\"2'");
+            var e1 = Tokenizer.Parse<ConstantExpression>("\"4\\\"2\"");
             Assert.Equal("4\"2", e1.Value);
 
-            Assert.Throws<Exception>(() => Tokenizer.Parse("'blow"));
+            Assert.Throws<Exception>(() => Tokenizer.Parse("\"blow"));
 
-            var e2 = Tokenizer.Parse<ConstantExpression>("'\\a\\b\\f\\n\\r\\t\\v\\0\\'\\\"\\\\'");
-            Assert.Equal("\a\b\f\n\r\t\v\0'\"\\", e2.Value);
+            var e2 = Tokenizer.Parse<ConstantExpression>("\"\\a\\b\\f\\n\\r\\t\\v\\0\\\"\\\\\"");
+            Assert.Equal("\a\b\f\n\r\t\v\0\"\\", e2.Value);
         }
     }
 }
