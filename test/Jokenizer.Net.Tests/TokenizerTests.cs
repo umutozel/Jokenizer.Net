@@ -146,5 +146,77 @@ namespace Jokenizer.Net.Tests {
             var ve = ce.Args[1] as VariableToken;
             Assert.Equal("a", ve.Name);
         }
+
+        [Fact]
+        public void ShouldReturnTernaryToken() {
+            var e = Tokenizer.Parse("check ? 42 : 21");
+            Assert.Equal(e.Type);
+
+            var te = e as TernaryToken;
+            Assert.Equal(TokenType.Variable, te.Predicate.Type);
+            Assert.Equal(TokenType.Literal, te.WhenTrue.Type);
+            Assert.Equal(TokenType.Literal, te.WhenFalse.Type);
+
+            var pe = te.Predicate as VariableToken;
+            Assert.Equal("check", pe.Name);
+
+            var wt = te.WhenTrue as LiteralToken;
+            Assert.Equal(42, wt.Value);
+
+            var wf = te.WhenFalse as LiteralToken;
+            Assert.Equal(21, wf.Value);
+        }
+
+        [Fact]
+        public void ShouldReturnBinaryToken() {
+            var e = Tokenizer.Parse("v1 > v2");
+            Assert.Equal(TokenType.Binary, e.Type);
+
+            var be = e as BinaryToken;
+            Assert.Equal(">", be.Operator);
+            Assert.Equal(TokenType.Variable, be.Left.Type);
+            Assert.Equal(TokenType.Variable, be.Right.Type);
+
+            var le = be.Left as VariableToken;
+            Assert.Equal("v1", le.Name);
+
+            var re = be.Right as VariableToken;
+            Assert.Equal("v2", re.Name);
+
+            var ie = Tokenizer.Parse("`don't ${w}, 42`");
+            Assert.Equal(TokenType.Binary, ie.Type);
+
+            var bie = ie as BinaryToken;
+            Assert.Equal("+", bie.Operator);
+            Assert.Equal(TokenType.Binary, bie.Left.Type);
+            Assert.Equal(TokenType.Literal, bie.Right.Type);
+
+            Assert.Throws<Exception>(() => Tokenizer.Parse("`don't ${w, 42`"));
+        }
+
+        [Fact]
+        public void ShouldReturnBinaryTokenWithCorrectPrecedence() {
+            var e = Tokenizer.Parse("1 + 2 * 3");
+            Assert.Equal(TokenType.Binary, e.Type);
+
+            var be = e as BinaryToken;
+            Assert.Equal("+", be.Operator);
+            Assert.Equal(TokenType.Literal, be.Left.Type);
+            Assert.Equal(TokenType.Binary, be.Right.Type);
+
+            var le = be.Left as LiteralToken;
+            Assert.Equal(1, le.Value);
+
+            var re = be.Right as BinaryToken;
+            Assert.Equal("*", re.Operator);
+            Assert.Equal(TokenType.Literal, re.Left.Type);
+            Assert.Equal(TokenType.Literal, re.Right.Type);
+
+            var le2 = re.Left as LiteralToken;
+            Assert.Equal(2, le2.Value);
+
+            var le3 = re.Right as LiteralToken;
+            Assert.Equal(3, le3.Value);
+        }
     }
 }
