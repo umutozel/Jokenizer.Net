@@ -92,7 +92,7 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
-        public void ShouldReturnIndexerExpression() {
+        public void ShouldReturnIndexerToken() {
             var e = Tokenizer.Parse("Company[\"Name\"]");
             Assert.Equal(TokenType.Indexer, e.Type);
 
@@ -105,6 +105,46 @@ namespace Jokenizer.Net.Tests {
 
             var ve2 = me.Key as LiteralToken;
             Assert.Equal("Name", ve2.Value);
+        }
+
+        [Fact]
+        public void ShouldReturnFuncToken() {
+            var e = Tokenizer.Parse("(a, b) => a < b");
+            Assert.Equal(TokenType.Lambda, e.Type);
+
+            var fe = e as LambdaToken;
+            Assert.Equal(2, fe.Parameters.Count());
+            Assert.Equal(new[] { "a", "b" }, fe.Parameters);
+            Assert.Equal(TokenType.Binary, fe.Body.Type);
+
+            var be = fe.Body as BinaryToken;
+            Assert.Equal("<", be.Operator);
+            Assert.Equal(TokenType.Variable, be.Left.Type);
+            Assert.Equal(TokenType.Variable, be.Right.Type);
+
+            var le = be.Left as VariableToken;
+            Assert.Equal("a", le.Name);
+
+            var re = be.Right as VariableToken;
+            Assert.Equal("b", re.Name);
+        }
+
+        [Fact]
+        public void ShouldReturnCallToken() {
+            var e = Tokenizer.Parse("Test(42, a)");
+            Assert.Equal(TokenType.Call, e.Type);
+
+            var ce = e as CallToken;
+            Assert.Equal(TokenType.Variable, ce.Callee.Type);
+            Assert.Equal(2, ce.Args.Length);
+            Assert.Equal(TokenType.Literal, ce.Args[0].Type);
+            Assert.Equal(TokenType.Variable, ce.Args[1].Type);
+
+            var le = ce.Args[0] as LiteralToken;
+            Assert.Equal(42, le.Value);
+
+            var ve = ce.Args[1] as VariableToken;
+            Assert.Equal("a", ve.Name);
         }
     }
 }

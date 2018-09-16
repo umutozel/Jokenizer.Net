@@ -285,17 +285,17 @@ namespace Jokenizer.Net {
             return new ObjectToken(es);
         }
 
-        Token TryMember(Token e) {
+        Token TryMember(Token t) {
             if (!Get(".")) return null;
 
             Skip();
             var v = TryVariable() as IVariableToken;
             if (v == null) throw new Exception($"Invalid member identifier at {idx}");
 
-            return new MemberToken(e, v);
+            return new MemberToken(t, v);
         }
 
-        Token TryIndexer(Token e) {
+        Token TryIndexer(Token t) {
             if (!Get("[")) return null;
 
             Skip();
@@ -304,22 +304,41 @@ namespace Jokenizer.Net {
 
             To("]");
 
-            return new IndexerToken(e, k);
+            return new IndexerToken(t, k);
         }
 
-        Token TryLambda(Token e) {
+        Token TryLambda(Token t) {
+            if (!Get("=>"))
+                return null;
+
+            return new LambdaToken(GetToken(), GetParameters(t));
+        }
+
+        IEnumerable<string> GetParameters(Token t) {
+            if (t is GroupToken gt) {
+                return gt.Tokens.Select(x => {
+                    if (!(x is IVariableToken xv))
+                        throw new Exception($"Invalid parameter at {idx}");
+
+                    return xv.Name;
+                });
+            }
+
+            if (!(t is IVariableToken vt))
+                throw new Exception($"Invalid parameter at {idx}");
+
+            return new[] { vt.Name };
+        }
+
+        Token TryCall(Token t) {
             return null;
         }
 
-        Token TryCall(Token e) {
+        Token TryTernary(Token t) {
             return null;
         }
 
-        Token TryTernary(Token e) {
-            return null;
-        }
-
-        Token TryBinary(Token e) {
+        Token TryBinary(Token t) {
             return null;
         }
 
