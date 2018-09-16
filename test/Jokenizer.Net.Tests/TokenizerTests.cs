@@ -141,7 +141,7 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal(TokenType.Variable, ce.Args[1].Type);
 
             var le = ce.Args[0] as LiteralToken;
-            Assert.Equal(42, le.Value);
+            Assert.Equal(42f, le.Value);
 
             var ve = ce.Args[1] as VariableToken;
             Assert.Equal("a", ve.Name);
@@ -150,7 +150,7 @@ namespace Jokenizer.Net.Tests {
         [Fact]
         public void ShouldReturnTernaryToken() {
             var e = Tokenizer.Parse("check ? 42 : 21");
-            Assert.Equal(e.Type);
+            Assert.Equal(TokenType.Ternary, e.Type);
 
             var te = e as TernaryToken;
             Assert.Equal(TokenType.Variable, te.Predicate.Type);
@@ -161,10 +161,10 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal("check", pe.Name);
 
             var wt = te.WhenTrue as LiteralToken;
-            Assert.Equal(42, wt.Value);
+            Assert.Equal(42f, wt.Value);
 
             var wf = te.WhenFalse as LiteralToken;
-            Assert.Equal(21, wf.Value);
+            Assert.Equal(21f, wf.Value);
         }
 
         [Fact]
@@ -183,7 +183,7 @@ namespace Jokenizer.Net.Tests {
             var re = be.Right as VariableToken;
             Assert.Equal("v2", re.Name);
 
-            var ie = Tokenizer.Parse("`don't ${w}, 42`");
+            var ie = Tokenizer.Parse("$\"don't {w}, 42\"");
             Assert.Equal(TokenType.Binary, ie.Type);
 
             var bie = ie as BinaryToken;
@@ -191,7 +191,7 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal(TokenType.Binary, bie.Left.Type);
             Assert.Equal(TokenType.Literal, bie.Right.Type);
 
-            Assert.Throws<Exception>(() => Tokenizer.Parse("`don't ${w, 42`"));
+            Assert.Throws<Exception>(() => Tokenizer.Parse("$\"don't {w, 42\""));
         }
 
         [Fact]
@@ -205,7 +205,7 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal(TokenType.Binary, be.Right.Type);
 
             var le = be.Left as LiteralToken;
-            Assert.Equal(1, le.Value);
+            Assert.Equal(1f, le.Value);
 
             var re = be.Right as BinaryToken;
             Assert.Equal("*", re.Operator);
@@ -213,10 +213,10 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal(TokenType.Literal, re.Right.Type);
 
             var le2 = re.Left as LiteralToken;
-            Assert.Equal(2, le2.Value);
+            Assert.Equal(2f, le2.Value);
 
             var le3 = re.Right as LiteralToken;
-            Assert.Equal(3, le3.Value);
+            Assert.Equal(3f, le3.Value);
         }
     }
 }

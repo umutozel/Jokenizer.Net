@@ -198,7 +198,7 @@ namespace Jokenizer.Net {
                                 s += '\\' + c;
                                 break;
                         }
-                    } else if (inter && Get("${")) {
+                    } else if (inter && Get("{")) {
                         if (s != "") {
                             es.Add(new LiteralToken(s));
                             s = "";
@@ -331,15 +331,36 @@ namespace Jokenizer.Net {
         }
 
         Token TryCall(Token t) {
-            return null;
+            return Get("(") ? GetCall(t) : null;
+        }
+
+        Token GetCall(Token t) {
+            var args = GetGroup();
+
+            return new CallToken(t, args);
         }
 
         Token TryTernary(Token t) {
-            return null;
+            if (!Get("?")) return null;
+
+            var whenTrue = GetToken();
+            To(":");
+            var whenFalse = GetToken();
+
+            return new TernaryToken(t, whenTrue, whenFalse);
         }
 
         Token TryBinary(Token t) {
-            return null;
+            var op = binary.FirstOrDefault(b => Get(b.Key.ToString()));
+
+            if (op.Equals(default(KeyValuePair<string, int>))) return null;
+
+            var right = GetToken();
+
+            if (right is BinaryToken bt)
+                return FixPrecedence(t, op.Key, bt);
+
+            return new BinaryToken(op.Key, t, right);
         }
 
         bool IsSpace() {
