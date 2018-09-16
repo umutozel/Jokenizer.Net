@@ -7,7 +7,7 @@ namespace Jokenizer.Net.Tokens {
 
         public LambdaToken(Token body, IEnumerable<string> parameters = null) : base(TokenType.Lambda) {
             Body = body;
-            Parameters = parameters ?? Enumerable.Empty<string>();
+            Parameters = parameters == null ? new string[0] : parameters.ToArray();
         }
 
         public Token Body { get; }

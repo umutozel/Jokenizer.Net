@@ -1,13 +1,14 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Jokenizer.Net.Tokens {
 
     public class ObjectToken : Token {
 
         public ObjectToken(IEnumerable<IVariableToken> members): base(TokenType.Object) {
-            Members = members;
+            Members = members == null ? new IVariableToken[0] : members.ToArray();
         }
         
-        public IEnumerable<IVariableToken> Members { get; }
+        public IVariableToken[] Members { get; }
     }
 }

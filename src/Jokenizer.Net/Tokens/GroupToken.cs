@@ -6,7 +6,7 @@ namespace Jokenizer.Net.Tokens {
     public class GroupToken : Token {
         
         public GroupToken(IEnumerable<Token> tokens = null): base(TokenType.Group) {
-            Tokens = tokens ?? Enumerable.Empty<Token>();
+            Tokens = tokens == null ? new Token[0] : tokens.ToArray();
         }
                 
         public IEnumerable<Token> Tokens { get; }

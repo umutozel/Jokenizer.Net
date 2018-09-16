@@ -7,10 +7,10 @@ namespace Jokenizer.Net.Tokens {
 
         public CallToken(Token callee, IEnumerable<Token> args = null) : base(TokenType.Call) {
             Callee = callee;
-            Args = args ?? Enumerable.Empty<Token>();
+            Args = args == null ? new Token[0] : args.ToArray();
         }
         
         public Token Callee { get; }
-        public IEnumerable<Token> Args { get; }
+        public Token[] Args { get; }
     }
 }

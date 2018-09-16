@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
-using System.Linq.Expressions;
-using Jokenizer.Net.Tests.Fixture;
 using Xunit;
 
 namespace Jokenizer.Net.Tests {
+    using Fixture;
+    using Tokens;
 
     public class TokenizerTests {
 
@@ -17,67 +17,64 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
-        public void ShouldReturnNumberLiteralExpression() {
-            var e = Tokenizer.Parse<ConstantExpression>("42");
+        public void ShouldReturnNumberLiteralToken() {
+            var e = Tokenizer.Parse<LiteralToken>("42");
             Assert.Equal(42f, e.Value);
         }
 
         [Fact]
-        public void ShouldReturnFloatConstantExpression() {
-            var e = Tokenizer.Parse<ConstantExpression>("42.4242");
+        public void ShouldReturnFloatLiteralToken() {
+            var e = Tokenizer.Parse<LiteralToken>("42.4242");
             Assert.Equal(42.4242f, e.Value);
         }
 
         [Fact]
-        public void ShouldReturnStringConstantExpression() {
-            var e1 = Tokenizer.Parse<ConstantExpression>("\"4\\\"2\"");
+        public void ShouldReturnStringLiteralToken() {
+            var e1 = Tokenizer.Parse<LiteralToken>("\"4\\\"2\"");
             Assert.Equal("4\"2", e1.Value);
 
             Assert.Throws<Exception>(() => Tokenizer.Parse("\"blow"));
 
-            var e2 = Tokenizer.Parse<ConstantExpression>("\"\\a\\b\\f\\n\\r\\t\\v\\0\\\"\\\\\"");
+            var e2 = Tokenizer.Parse<LiteralToken>("\"\\a\\b\\f\\n\\r\\t\\v\\0\\\"\\\\\"");
             Assert.Equal("\a\b\f\n\r\t\v\0\"\\", e2.Value);
         }
 
         [Fact]
-        public void ShouldReturnConstantExpressionForKnownVariables() {
-            var e1 = Tokenizer.Parse<ConstantExpression>("true");
+        public void ShouldReturnLiteralTokenForKnownVariables() {
+            var e1 = Tokenizer.Parse<LiteralToken>("true");
             Assert.Equal(true, e1.Value);
 
-            var e2 = Tokenizer.Parse<ConstantExpression>("false");
+            var e2 = Tokenizer.Parse<LiteralToken>("false");
             Assert.Equal(false, e2.Value);
 
-            var e3 = Tokenizer.Parse<ConstantExpression>("null");
+            var e3 = Tokenizer.Parse<LiteralToken>("null");
             Assert.Equal(null, e3.Value);
         }
 
         [Fact]
-        public void ShouldReturnVariableExpression() {
-            var e1 = Tokenizer.ParseFor<MemberExpression>(new { Name = "Rick" }, "Name");
-            Assert.Equal("Name", e1.Member.Name);
-
-            var e2 = Tokenizer.Parse<ConstantExpression>("@0", "Zaphod");
-            Assert.Equal("Zaphod", e2.Value);
+        public void ShouldReturnVariableToken() {
+            var e1 = Tokenizer.Parse<VariableToken>("Name");
+            Assert.Equal("Name", e1.Name);
         }
 
         [Fact]
-        public void ShouldReturnUnaryExpression() {
-            var e = Tokenizer.ParseFor<UnaryExpression>(new { IsActive = false }, "!IsActive");
+        public void ShouldReturnUnaryToken() {
+            var e = Tokenizer.Parse<UnaryToken>("!IsActive");
 
-            Assert.Equal(ExpressionType.Not, e.NodeType);
-            Assert.Equal(ExpressionType.MemberAccess, e.Operand.NodeType);
+            Assert.Equal('!', e.Operator);
+            Assert.Equal(TokenType.Variable, e.Target.Type);
 
-            var oe = e.Operand as MemberExpression;
-            Assert.Equal("IsActive", oe.Member.Name);
+            var oe = (VariableToken)e.Target;
+            Assert.Equal("IsActive", oe.Name);
         }
 
         [Fact]
-        public void ShouldReturnMemberInitExpression() {
-            var e = Tokenizer.ParseFor<MemberInitExpression>(new { b = 2 }, "new { a = 4, b }");
+        public void ShouldReturnObjectToken() {
+            var e = Tokenizer.Parse<ObjectToken>("new { a = 4, b }");
 
-            Assert.Equal(2, e.Bindings.Count);
-            Assert.Equal("a", e.Bindings[0].Member.Name);
-            Assert.Equal("b", e.Bindings[1].Member.Name);
+            Assert.Equal(2, e.Members.Length);
+            Assert.Equal("a", e.Members[0].Name);
+            Assert.Equal("b", e.Members[1].Name);
         }
     }
 }

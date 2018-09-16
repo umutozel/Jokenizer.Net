@@ -6,9 +6,9 @@ namespace Jokenizer.Net.Tokens {
     public class ArrayToken : Token {
 
         public ArrayToken(IEnumerable<Token> items = null): base(TokenType.Array) {
-            Items = items ?? Enumerable.Empty<Token>();
+            Items = items == null ? new Token[0] : items.ToArray();
         }
         
-        public IEnumerable<Token> Items { get; }
+        public Token[] Items { get; }
     }
 }
