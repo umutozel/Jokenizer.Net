@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading;
 
 namespace Jokenizer.Net {
+    using Dynamic;
 
     public class Tokenizer {
         private static Dictionary<char, ExpressionType> unary = new Dictionary<char, ExpressionType> {

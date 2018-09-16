@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
-namespace Jokenizer.Net {
+namespace Jokenizer.Net.Dynamic {
+
     internal class ClassFactory {
         public static readonly ClassFactory Instance = new ClassFactory();
 

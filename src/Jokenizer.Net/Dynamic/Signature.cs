@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Jokenizer.Net {
+namespace Jokenizer.Net.Dynamic {
 
     internal class Signature : IEquatable<Signature> {
         private readonly int hashCode;

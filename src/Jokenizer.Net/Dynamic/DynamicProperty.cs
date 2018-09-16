@@ -1,6 +1,6 @@
 using System;
 
-namespace Jokenizer.Net {
+namespace Jokenizer.Net.Dynamic {
 
     internal class DynamicProperty {
 

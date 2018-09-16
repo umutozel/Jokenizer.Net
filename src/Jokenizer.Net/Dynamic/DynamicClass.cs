@@ -1,7 +1,8 @@
 using System.Reflection;
 using System.Text;
 
-namespace Jokenizer.Net {
+namespace Jokenizer.Net.Dynamic {
+
     public abstract class DynamicClass {
 
         public override string ToString() {
