@@ -6,7 +6,6 @@ namespace Jokenizer.Net.Tokens {
         Group,
         Assign,
         Object,
-        Array,
         Member,
         Indexer,
         Binary,

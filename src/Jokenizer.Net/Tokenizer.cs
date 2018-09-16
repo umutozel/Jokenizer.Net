@@ -70,8 +70,7 @@ namespace Jokenizer.Net {
             Token t = TryLiteral()
                 ?? TryVariable()
                 ?? TryUnary()
-                ?? TryGroup()
-                ?? TryArray();
+                ?? TryGroup();
 
             if (t == null) return t;
 
@@ -262,10 +261,6 @@ namespace Jokenizer.Net {
             return es;
         }
 
-        Token TryArray() {
-            return null;
-        }
-
         Token GetObject() {
             To("{");
 
@@ -292,7 +287,13 @@ namespace Jokenizer.Net {
         }
 
         Token TryMember(Token e) {
-            return null;
+            if (!Get(".")) return null;
+
+            Skip();
+            var v = TryVariable() as IVariableToken;
+            if (v == null) throw new Exception($"Invalid member identifier at {idx}");
+
+            return new MemberToken(e, v);
         }
 
         Token TryIndexer(Token e) {

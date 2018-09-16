@@ -76,5 +76,19 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal("a", e.Members[0].Name);
             Assert.Equal("b", e.Members[1].Name);
         }
+
+        [Fact]
+        public void ShouldReturnMemberToken() {
+            var e = Tokenizer.Parse("Company.Name");
+            Assert.Equal(TokenType.Member, e.Type);
+
+            var me = e as MemberToken;
+            Assert.Equal(TokenType.Variable, me.Owner.Type);
+
+            var ve = me.Owner as VariableToken;
+            Assert.Equal("Company", ve.Name);
+
+            Assert.Equal("Name", me.Member.Name);
+        }
     }
 }
