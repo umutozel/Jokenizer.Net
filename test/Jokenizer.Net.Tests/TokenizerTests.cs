@@ -90,5 +90,21 @@ namespace Jokenizer.Net.Tests {
 
             Assert.Equal("Name", me.Member.Name);
         }
+
+        [Fact]
+        public void ShouldReturnIndexerExpression() {
+            var e = Tokenizer.Parse("Company[\"Name\"]");
+            Assert.Equal(TokenType.Indexer, e.Type);
+
+            var me = e as IndexerToken;
+            Assert.Equal(TokenType.Variable, me.Owner.Type);
+            Assert.Equal(TokenType.Literal, me.Key.Type);
+
+            var ve = me.Owner as VariableToken;
+            Assert.Equal("Company", ve.Name);
+
+            var ve2 = me.Key as LiteralToken;
+            Assert.Equal("Name", ve2.Value);
+        }
     }
 }

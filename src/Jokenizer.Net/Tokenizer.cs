@@ -77,8 +77,7 @@ namespace Jokenizer.Net {
             if (t is VariableToken vt) {
                 if (knowns.TryGetValue(vt.Name, out var value)) {
                     t = new LiteralToken(value);
-                }
-                else if (vt.Name == "new") {
+                } else if (vt.Name == "new") {
                     t = GetObject();
                 }
             }
@@ -297,7 +296,15 @@ namespace Jokenizer.Net {
         }
 
         Token TryIndexer(Token e) {
-            return null;
+            if (!Get("[")) return null;
+
+            Skip();
+            var k = GetToken();
+            if (k == null) throw new Exception($"Invalid indexer identifier at {idx}");
+
+            To("]");
+
+            return new IndexerToken(e, k);
         }
 
         Token TryLambda(Token e) {
