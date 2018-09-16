@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
 using Jokenizer.Net.Tests.Fixture;
@@ -51,13 +53,16 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldReturnVariableExpression() {
-            var e = Tokenizer.Parse<MemberExpression>("Name", new { Name = "Rick" });
-            Assert.Equal("Name", e.Member.Name);
+            var e1 = Tokenizer.ParseFor<MemberExpression>(new { Name = "Rick" }, "Name");
+            Assert.Equal("Name", e1.Member.Name);
+
+            var e2 = Tokenizer.Parse<ConstantExpression>("@0", "Zaphod");
+            Assert.Equal("Zaphod", e2.Value);
         }
 
         [Fact]
         public void ShouldReturnUnaryExpression() {
-            var e = Tokenizer.Parse<UnaryExpression>("!IsActive", new { IsActive = false });
+            var e = Tokenizer.ParseFor<UnaryExpression>(new { IsActive = false }, "!IsActive");
 
             Assert.Equal(ExpressionType.Not, e.NodeType);
             Assert.Equal(ExpressionType.MemberAccess, e.Operand.NodeType);
@@ -67,18 +72,12 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
-        public void ShouldReturnNewExpression() {
-            var e = Tokenizer.Parse<NewExpression>("new { a = 4, b }", new { b = 2 });
+        public void ShouldReturnMemberInitExpression() {
+            var e = Tokenizer.ParseFor<MemberInitExpression>(new { b = 2 }, "new { a = 4, b }");
 
-            Assert.Equal(2, e.Arguments.Count);
-            Assert.Equal(ExpressionType.Constant, e.Arguments[0].NodeType);
-            Assert.Equal(4, ((ConstantExpression)e.Arguments[0]).Value);
-            Assert.Equal(ExpressionType.Constant, e.Arguments[1].NodeType);
-            Assert.Equal(2, ((ConstantExpression)e.Arguments[0]).Value);
-
-            Assert.Equal(2, e.Members.Count);
-            Assert.Equal("a", e.Members[0].Name);
-            Assert.Equal("b", e.Members[1].Name);
+            Assert.Equal(2, e.Bindings.Count);
+            Assert.Equal("a", e.Bindings[0].Member.Name);
+            Assert.Equal("b", e.Bindings[1].Member.Name);
         }
     }
 }

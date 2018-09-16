@@ -2,18 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Threading;
 
 namespace Jokenizer.Net {
 
     public class Tokenizer {
-        private static Dictionary<char, ExpressionType> unary = new Dictionary<char, ExpressionType> { 
+        private static Dictionary<char, ExpressionType> unary = new Dictionary<char, ExpressionType> {
             { '-', ExpressionType.Negate },
             { '+', ExpressionType.UnaryPlus },
             { '!', ExpressionType.Not },
             { '~', ExpressionType.OnesComplement }
         };
-        private static Dictionary <string, (int Precedence, ExpressionType Type) > binary = new Dictionary < string, (int, ExpressionType) > { 
+        private static Dictionary<string, (int Precedence, ExpressionType Type)> binary = new Dictionary<string, (int, ExpressionType)> {
             { "&&", (0, ExpressionType.And) },
             { "||", (0, ExpressionType.OrElse) },
             { "??", (0, ExpressionType.Coalesce) },
@@ -34,19 +35,20 @@ namespace Jokenizer.Net {
             { "/", (6, ExpressionType.Divide) },
             { "%", (6, ExpressionType.Modulo) }
         };
-        private static Dictionary<string, object> knowns = new Dictionary<string, object> { { "true", true },
+        private static Dictionary<string, object> knowns = new Dictionary<string, object> {
+            { "true", true },
             { "false", false },
             { "null", null }
         };
         private static string separator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
 
         private readonly string exp;
+        private readonly Stack<object> these;
         private readonly int len;
-        private readonly Stack<ConstantExpression> these;
         private readonly IDictionary<string, object> externals;
         private int idx = 0;
         private char ch;
-        private ConstantExpression @this => these.Peek(); 
+        private object @this => these.Peek();
 
         private Tokenizer(string exp, object @this, IDictionary<string, object> externals = null) {
             if (exp == null)
@@ -55,44 +57,42 @@ namespace Jokenizer.Net {
                 throw new ArgumentException(nameof(exp));
 
             this.exp = exp;
-            this.len = exp.Length;
-
-            this.these = new Stack<ConstantExpression>(new []  { Expression.Constant(@this) });
+            this.these = new Stack<object>();
+            this.these.Push(@this);
             this.externals = externals ?? new Dictionary<string, object>();
 
+            this.len = exp.Length;
             ch = exp.ElementAt(0);
         }
 
-        public static Expression Parse(string exp, params object[] parameters) {
-            var i = -1;
-            var externals = parameters.ToDictionary(p =>(i++).ToString());
-            return new Tokenizer(exp, null, externals).GetExp();
-        }
-
-        public static T Parse<T>(string exp, params object[] parameters) where T : Expression {
-            return (T) Parse(exp, null, parameters);
-        }
-
-        public static Expression Parse(string exp, object @this, params object[] parameters) {
-            var i = -1;
-            var externals = parameters.ToDictionary(p =>(i++).ToString());
+        public static Expression ParseFor(object @this, string exp, params object[] parameters) {
+            var i = 0;
+            var externals = parameters.ToDictionary(p => (i++).ToString());
             return new Tokenizer(exp, @this, externals).GetExp();
         }
 
-        public static T Parse<T>(string exp, object @this, params object[] parameters) where T : Expression {
-            return (T) Parse(exp, @this, parameters);
+        public static Expression Parse(string exp, params object[] parameters) {
+            return ParseFor(null, exp, parameters);
+        }
+
+        public static T ParseFor<T>(object @this, string exp, params object[] parameters) where T : Expression {
+            return (T)ParseFor(@this, exp, parameters);
+        }
+
+        public static T Parse<T>(string exp, params object[] parameters) where T : Expression {
+            return (T)ParseFor(null, exp, parameters);
         }
 
         Expression GetExp() {
             Skip();
 
             Expression e = TryLiteral() ??
+                TryObject() ??
                 TryVariable() ??
                 TryUnary() ??
-                TryObject() ??
                 TryArray();
 
-            if (Done() ||  e == null) return e;
+            if (Done() || e == null) return e;
 
             Expression r;
             do {
@@ -164,7 +164,7 @@ namespace Jokenizer.Net {
                             }
 
                             return es.Aggregate(
-                                (Expression) Expression.Constant(""),
+                                (Expression)Expression.Constant(""),
                                 (p, n) => Expression.MakeBinary(ExpressionType.Add, p, n)
                             );
                         }
@@ -230,26 +230,39 @@ namespace Jokenizer.Net {
             return tryNumber() ?? tryString();
         }
 
-        Expression TryVariable() {
+        string GetVariableName(bool isExt = false) {
             var v = "";
 
-            Get("@");
-
-            if (IsVariableStart()) {
+            if (IsVariableStart() || (isExt && IsNumber())) {
                 do {
                     v += ch;
                     Move();
                 } while (StillVariable());
             }
 
-            if (v == "") return null;
-            if (knowns.TryGetValue(v, out var known))
+            return v;
+        }
+
+        Expression TryVariable() {
+            var isExt = Get("@");
+
+            var v = GetVariableName(isExt);
+            if (v == "") {
+                if (isExt)
+                    throw new Exception($"Missing variable name at {idx}");
+
+                return null;
+            }
+
+            if (isExt) {
+                if (externals.TryGetValue(v, out var external))
+                    return Expression.Constant(external);
+
+                throw new Exception($"Unknown variable {v}");
+            } else if (knowns.TryGetValue(v, out var known))
                 return Expression.Constant(known);
 
-            if (externals.TryGetValue(v, out var external))
-                return Expression.Constant(external);
-
-            return Expression.PropertyOrField(@this, v);
+            return Expression.PropertyOrField(Expression.Constant(@this), v);
         }
 
         Expression TryUnary() {
@@ -262,7 +275,37 @@ namespace Jokenizer.Net {
         }
 
         Expression TryObject() {
-            return null;
+            if (!Get("new")) return null;
+            To("{");
+
+            var expressions = new List<Expression>();
+            var properties = new List<DynamicProperty>();
+            do {
+                Skip();
+
+                var v = GetVariableName();
+                if (string.IsNullOrEmpty(v))
+                    throw new Exception($"Invalid assignment at {idx}");
+
+                Skip();
+
+                var a = Get("=") ? GetExp() : Expression.PropertyOrField(Expression.Constant(@this), v);
+                if (a == null)
+                    throw new Exception($"Invalid assignment at {idx}");
+
+                expressions.Add(a);
+                properties.Add(new DynamicProperty(v, a.Type));
+            } while (Get(","));
+
+            To("}");
+
+            var type = ClassFactory.Instance.GetDynamicClass(properties);
+            var bindings = new MemberBinding[properties.Count];
+            for (var i = 0; i < bindings.Length; i++) {
+                bindings[i] = Expression.Bind(type.GetProperty(properties[i].Name), expressions[i]);
+            }
+
+            return Expression.MemberInit(Expression.New(type), bindings);
         }
 
         Expression TryArray() {
@@ -306,9 +349,9 @@ namespace Jokenizer.Net {
         }
 
         bool IsVariableStart() {
-            return (ch == 95) || // `_`
-                (ch >= 65 && ch <= 90) || // A...Z
-                (ch >= 97 && ch <= 122); // a...z
+            return ch == 95                 // `_`
+                || (ch >= 65 && ch <= 90)   // A...Z
+                || (ch >= 97 && ch <= 122); // a...z
         }
 
         bool StillVariable() {
