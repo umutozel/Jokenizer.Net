@@ -12,7 +12,7 @@ namespace Jokenizer.Net.Tests {
     public class TokenizerTests {
 
         [Fact]
-        public void ShouldReturnNull() {
+        public void ShouldThrowForNullOrEmpty() {
             Assert.Throws<ArgumentNullException>(() => Tokenizer.Parse(null));
             Assert.Throws<ArgumentException>(() => Tokenizer.Parse(" "));
         }

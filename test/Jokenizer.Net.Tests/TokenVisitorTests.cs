@@ -24,9 +24,12 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
-        public void ShouldEvaluateString() {
-            var v = TokenVisitor.ToFunc<string>(Tokenizer.Parse("\"4\'2\""));
-            Assert.Equal("4'2", v());
+        public void ShouldEvaluateInterpolatedString() {
+            var v1 = TokenVisitor.ToFunc<string>(Tokenizer.Parse<LiteralToken>("\"4\\\"2\""));
+            Assert.Equal("4\"2", v1());
+
+            var v2 = TokenVisitor.ToFunc<string>(Tokenizer.Parse<LiteralToken>("\"\\a\\b\\f\\n\\r\\t\\v\\0\\\"\\\\\""));
+            Assert.Equal("\a\b\f\n\r\t\v\0\"\\", v2());
         }
     }
 }
