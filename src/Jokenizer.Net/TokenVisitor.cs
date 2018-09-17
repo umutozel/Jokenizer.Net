@@ -25,6 +25,13 @@ namespace Jokenizer.Net {
             }
         }
 
+        static Dictionary<char, ExpressionType> unary = new Dictionary<char, ExpressionType> { 
+            { '-', ExpressionType.Negate },
+            { '+', ExpressionType.UnaryPlus },
+            { '!', ExpressionType.Not },
+            { '~', ExpressionType.OnesComplement }
+        };
+
         static readonly Dictionary<string, ExpressionType> binary = new Dictionary<string, ExpressionType> {
             { "&&", ExpressionType.And },
             { "||", ExpressionType.OrElse },
@@ -119,8 +126,10 @@ namespace Jokenizer.Net {
         }
 
         static ExpressionType GetUnaryOp(char op) {
-            // todo:
-            return ExpressionType.UnaryPlus;
+            if (unary.TryGetValue(op, out var ut))
+                return ut;
+
+            throw new Exception($"Unknown unary operator {op}");
         }
 
         public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, Dictionary<string, object> variables,
