@@ -59,5 +59,14 @@ namespace Jokenizer.Net.Tests {
 
             Assert.Equal(false, v());
         }
+
+        [Fact]
+        public void ShouldEvaluateObject() {
+            var v = TokenVisitor.ToFunc<dynamic>(Tokenizer.Parse("new { a = 4, b = @0 }"), 2);
+            var o = v();
+
+            Assert.Equal(4, o.a);
+            Assert.Equal(2, o.b);
+        }
     }
 }
