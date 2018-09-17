@@ -109,7 +109,7 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
-        public void ShouldReturnFuncToken() {
+        public void ShouldReturnLambdaToken() {
             var e = Tokenizer.Parse("(a, b) => a < b");
             Assert.Equal(TokenType.Lambda, e.Type);
 
