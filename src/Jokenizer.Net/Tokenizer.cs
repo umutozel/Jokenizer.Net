@@ -56,14 +56,6 @@ namespace Jokenizer.Net {
             ch = exp.ElementAt(0);
         }
 
-        public static Token Parse(string exp) {
-            return new Tokenizer(exp).GetToken();
-        }
-
-        public static T Parse<T>(string exp) where T : Token {
-            return (T)Parse(exp);
-        }
-
         Token GetToken() {
             Skip();
 
@@ -124,7 +116,7 @@ namespace Jokenizer.Net {
                     if (IsVariableStart())
                         throw new Exception($"Unexpected character (${ch}) at index ${idx}");
 
-                    var val = isFloat ? float.Parse(n) : int.Parse(n);
+                    var val = isFloat ? float.Parse(n) : Convert.ChangeType(int.Parse(n), typeof(int));
                     return new LiteralToken(val);
                 }
 
@@ -425,6 +417,14 @@ namespace Jokenizer.Net {
             return p2 < p1
                 ? new BinaryToken(right.Operator, new BinaryToken(leftOp, left, right.Left), right.Right)
                 : new BinaryToken(leftOp, left, right);
+        }
+
+        public static Token Parse(string exp) {
+            return new Tokenizer(exp).GetToken();
+        }
+
+        public static T Parse<T>(string exp) where T : Token {
+            return (T)Parse(exp);
         }
     }
 }

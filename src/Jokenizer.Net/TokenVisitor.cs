@@ -3,15 +3,15 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Jokenizer.Net {
-    using System.Reflection;
     using Dynamic;
     using Tokens;
 
     public class TokenVisitor {
 
-        static Dictionary<char, ExpressionType> unary = new Dictionary<char, ExpressionType> { 
+        static Dictionary<char, ExpressionType> unary = new Dictionary<char, ExpressionType> {
             { '-', ExpressionType.Negate },
             { '+', ExpressionType.UnaryPlus },
             { '!', ExpressionType.Not },
@@ -56,7 +56,7 @@ namespace Jokenizer.Net {
                 });
             }
         }
-        
+
         public LambdaExpression Visit(Token token, IEnumerable<Type> parameters) {
             var oldParameters = this.parameters;
 
@@ -87,7 +87,7 @@ namespace Jokenizer.Net {
                 case LambdaToken lt:
                     throw new Exception($"Invalid lambda usage");
                 case LiteralToken lit:
-                    return Expression.Constant(lit.Value);
+                    return Expression.Constant(lit.Value, lit.Value != null ? lit.Value.GetType() : null);
                 case MemberToken mt:
                     return Expression.PropertyOrField(Visit(mt.Owner), mt.Member.Name);
                 case ObjectToken ot:
@@ -131,6 +131,8 @@ namespace Jokenizer.Net {
 
             throw new Exception($"Unknown unary operator {op}");
         }
+
+        #region ToLambda
 
         public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, Dictionary<string, object> variables,
                                                 params object[] parameters) {
@@ -176,5 +178,47 @@ namespace Jokenizer.Net {
         public static Expression<Func<T1, T2, T3, TResult>> ToLambda<T1, T2, T3, TResult>(Token token, params object[] parameters) {
             return (Expression<Func<T1, T2, T3, TResult>>)ToLambda(token, new[] { typeof(T1), typeof(T2), typeof(T3) }, parameters);
         }
+
+        #endregion
+
+        #region ToFunc
+
+        public static Func<TResult> ToFunc<TResult>(Token token, IDictionary<string, object> variables,
+                                                          params object[] parameters) {
+            return (Func<TResult>)ToLambda(token, null, variables, parameters).Compile();
+        }
+
+        public static Func<TResult> ToFunc<TResult>(Token token, params object[] parameters) {
+            return (Func<TResult>)ToLambda(token, null, null, parameters).Compile();
+        }
+
+        public static Func<T, TResult> ToFunc<T, TResult>(Token token, IDictionary<string, object> variables,
+                                                                        params object[] parameters) {
+            return (Func<T, TResult>)ToLambda(token, new[] { typeof(T) }, variables, parameters).Compile();
+        }
+
+        public static Func<T, TResult> ToFunc<T, TResult>(Token token, params object[] parameters) {
+            return (Func<T, TResult>)ToLambda(token, new[] { typeof(T) }, null, parameters).Compile();
+        }
+
+        public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(Token token, IDictionary<string, object> variables,
+                                                                                  params object[] parameters) {
+            return (Func<T1, T2, TResult>)ToLambda(token, new[] { typeof(T1), typeof(T2) }, variables, parameters).Compile();
+        }
+
+        public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(Token token, params object[] parameters) {
+            return (Func<T1, T2, TResult>)ToLambda(token, new[] { typeof(T1), typeof(T2) }, parameters).Compile();
+        }
+
+        public static Func<T1, T2, T3, TResult> ToFunc<T1, T2, T3, TResult>(Token token, IDictionary<string, object> variables,
+                                                                                          params object[] parameters) {
+            return (Func<T1, T2, T3, TResult>)ToLambda(token, new[] { typeof(T1), typeof(T2), typeof(T3) }, variables, parameters).Compile();
+        }
+
+        public static Func<T1, T2, T3, TResult> ToFunc<T1, T2, T3, TResult>(Token token, params object[] parameters) {
+            return (Func<T1, T2, T3, TResult>)ToLambda(token, new[] { typeof(T1), typeof(T2), typeof(T3) }, parameters).Compile();
+        }
+
+        #endregion
     }
 }

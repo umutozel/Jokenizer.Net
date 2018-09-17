@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
+using System.Linq.Expressions;
 using Xunit;
 
 namespace Jokenizer.Net.Tests {
-    using System.Linq.Expressions;
     using Fixture;
     using Tokens;
 
@@ -14,12 +14,13 @@ namespace Jokenizer.Net.Tests {
         [Fact]
         public void ShouldReturnNull() {
             Assert.Throws<ArgumentNullException>(() => Tokenizer.Parse(null));
-            Assert.Throws<ArgumentException>(() => Tokenizer.Parse(" "));        }
+            Assert.Throws<ArgumentException>(() => Tokenizer.Parse(" "));
+        }
 
         [Fact]
         public void ShouldReturnNumberLiteralToken() {
             var e = Tokenizer.Parse<LiteralToken>("42");
-            Assert.Equal(42f, e.Value);
+            Assert.Equal(42, e.Value);
         }
 
         [Fact]
@@ -141,7 +142,7 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal(TokenType.Variable, ce.Args[1].Type);
 
             var le = ce.Args[0] as LiteralToken;
-            Assert.Equal(42f, le.Value);
+            Assert.Equal(42, le.Value);
 
             var ve = ce.Args[1] as VariableToken;
             Assert.Equal("a", ve.Name);
@@ -161,10 +162,10 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal("check", pe.Name);
 
             var wt = te.WhenTrue as LiteralToken;
-            Assert.Equal(42f, wt.Value);
+            Assert.Equal(42, wt.Value);
 
             var wf = te.WhenFalse as LiteralToken;
-            Assert.Equal(21f, wf.Value);
+            Assert.Equal(21, wf.Value);
         }
 
         [Fact]
@@ -205,7 +206,7 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal(TokenType.Binary, be.Right.Type);
 
             var le = be.Left as LiteralToken;
-            Assert.Equal(1f, le.Value);
+            Assert.Equal(1, le.Value);
 
             var re = be.Right as BinaryToken;
             Assert.Equal("*", re.Operator);
@@ -213,10 +214,10 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal(TokenType.Literal, re.Right.Type);
 
             var le2 = re.Left as LiteralToken;
-            Assert.Equal(2f, le2.Value);
+            Assert.Equal(2, le2.Value);
 
             var le3 = re.Right as LiteralToken;
-            Assert.Equal(3f, le3.Value);
+            Assert.Equal(3, le3.Value);
         }
     }
 }
