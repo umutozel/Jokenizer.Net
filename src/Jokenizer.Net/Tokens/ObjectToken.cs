@@ -5,10 +5,10 @@ namespace Jokenizer.Net.Tokens {
 
     public class ObjectToken : Token {
 
-        public ObjectToken(IEnumerable<IVariableToken> members): base(TokenType.Object) {
-            Members = members == null ? new IVariableToken[0] : members.ToArray();
+        public ObjectToken(IEnumerable<AssignToken> members): base(TokenType.Object) {
+            Members = members == null ? new AssignToken[0] : members.ToArray();
         }
         
-        public IVariableToken[] Members { get; }
+        public AssignToken[] Members { get; }
     }
 }

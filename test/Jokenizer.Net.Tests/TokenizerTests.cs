@@ -5,6 +5,7 @@ using System.Linq;
 using Xunit;
 
 namespace Jokenizer.Net.Tests {
+    using System.Linq.Expressions;
     using Fixture;
     using Tokens;
 
@@ -13,8 +14,7 @@ namespace Jokenizer.Net.Tests {
         [Fact]
         public void ShouldReturnNull() {
             Assert.Throws<ArgumentNullException>(() => Tokenizer.Parse(null));
-            Assert.Throws<ArgumentException>(() => Tokenizer.Parse(" "));
-        }
+            Assert.Throws<ArgumentException>(() => Tokenizer.Parse(" "));        }
 
         [Fact]
         public void ShouldReturnNumberLiteralToken() {

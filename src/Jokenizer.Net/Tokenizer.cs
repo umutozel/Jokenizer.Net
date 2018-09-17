@@ -70,7 +70,7 @@ namespace Jokenizer.Net {
             Token t = TryLiteral()
                 ?? TryVariable()
                 ?? TryUnary()
-                ?? TryGroup();
+                ?? (Token)TryGroup();
 
             if (t == null) return t;
 
@@ -94,7 +94,7 @@ namespace Jokenizer.Net {
                     ?? TryLambda(t)
                     ?? TryCall(t)
                     ?? TryTernary(t)
-                    ?? TryBinary(t);
+                    ?? (Token)TryBinary(t);
             } while (t != null);
 
             return r;
@@ -219,7 +219,7 @@ namespace Jokenizer.Net {
             return tryNumber() ?? tryString();
         }
 
-        Token TryVariable() {
+        VariableToken TryVariable() {
             var v = "";
 
             if (IsVariableStart()) {
@@ -232,7 +232,7 @@ namespace Jokenizer.Net {
             return v != "" ? new VariableToken(v) : null;
         }
 
-        Token TryUnary() {
+        UnaryToken TryUnary() {
             if (unary.Contains(ch)) {
                 var u = ch;
                 Move();
@@ -242,7 +242,7 @@ namespace Jokenizer.Net {
             return null;
         }
 
-        Token TryGroup() {
+        GroupToken TryGroup() {
             return Get("(") ? new GroupToken(GetGroup()) : null;
         }
 
@@ -260,13 +260,13 @@ namespace Jokenizer.Net {
             return es;
         }
 
-        Token GetObject() {
+        ObjectToken GetObject() {
             To("{");
 
-            var es = new List<IVariableToken>();
+            var es = new List<AssignToken>();
             do {
                 Skip();
-                var vt = TryVariable() as IVariableToken;
+                var vt = TryVariable();
                 if (vt == null)
                     throw new Exception($"Invalid assignment at {idx}");
 
@@ -276,7 +276,7 @@ namespace Jokenizer.Net {
 
                     es.Add(new AssignToken(vt.Name, GetToken()));
                 } else {
-                    es.Add(vt);
+                    es.Add(new AssignToken(vt.Name, vt));
                 }
             } while (Get(","));
 
@@ -285,7 +285,7 @@ namespace Jokenizer.Net {
             return new ObjectToken(es);
         }
 
-        Token TryMember(Token t) {
+        MemberToken TryMember(Token t) {
             if (!Get(".")) return null;
 
             Skip();
@@ -295,7 +295,7 @@ namespace Jokenizer.Net {
             return new MemberToken(t, v);
         }
 
-        Token TryIndexer(Token t) {
+        IndexerToken TryIndexer(Token t) {
             if (!Get("[")) return null;
 
             Skip();
@@ -307,7 +307,7 @@ namespace Jokenizer.Net {
             return new IndexerToken(t, k);
         }
 
-        Token TryLambda(Token t) {
+        LambdaToken TryLambda(Token t) {
             if (!Get("=>"))
                 return null;
 
@@ -330,17 +330,17 @@ namespace Jokenizer.Net {
             return new[] { vt.Name };
         }
 
-        Token TryCall(Token t) {
+        CallToken TryCall(Token t) {
             return Get("(") ? GetCall(t) : null;
         }
 
-        Token GetCall(Token t) {
+        CallToken GetCall(Token t) {
             var args = GetGroup();
 
             return new CallToken(t, args);
         }
 
-        Token TryTernary(Token t) {
+        TernaryToken TryTernary(Token t) {
             if (!Get("?")) return null;
 
             var whenTrue = GetToken();
@@ -350,7 +350,7 @@ namespace Jokenizer.Net {
             return new TernaryToken(t, whenTrue, whenFalse);
         }
 
-        Token TryBinary(Token t) {
+        BinaryToken TryBinary(Token t) {
             var op = binary.FirstOrDefault(b => Get(b.Key.ToString()));
 
             if (op.Equals(default(KeyValuePair<string, int>))) return null;
@@ -418,7 +418,7 @@ namespace Jokenizer.Net {
             Move(c.Length);
         }
 
-        Token FixPrecedence(Token left, string leftOp, BinaryToken right) {
+        BinaryToken FixPrecedence(Token left, string leftOp, BinaryToken right) {
             var p1 = Tokenizer.binary[leftOp];
             var p2 = Tokenizer.binary[right.Operator];
 
