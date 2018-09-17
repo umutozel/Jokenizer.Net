@@ -8,8 +8,8 @@ namespace Jokenizer.Net {
     using Tokens;
 
     public class Tokenizer {
-        private static char[] unary = new[] { '-', '+', '!', '~' };
-        private static Dictionary<string, int> binary = new Dictionary<string, int> {
+        static char[] unary = new[] { '-', '+', '!', '~' };
+        static Dictionary<string, int> binary = new Dictionary<string, int> {
             { "&&", 0 },
             { "||", 0 },
             { "??", 0 },
@@ -30,18 +30,18 @@ namespace Jokenizer.Net {
             { "/", 6 },
             { "%", 6 }
         };
-        private static Dictionary<string, object> knowns = new Dictionary<string, object> {
+        static Dictionary<string, object> knowns = new Dictionary<string, object> {
             { "true", true },
             { "false", false },
             { "null", null }
         };
-        private static string separator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
+        static string separator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
 
-        private readonly string exp;
-        private readonly int len;
-        private readonly IDictionary<string, object> externals;
-        private int idx = 0;
-        private char ch;
+        readonly string exp;
+        readonly int len;
+        readonly IDictionary<string, object> externals;
+        int idx = 0;
+        char ch;
 
         private Tokenizer(string exp) {
             if (exp == null)
