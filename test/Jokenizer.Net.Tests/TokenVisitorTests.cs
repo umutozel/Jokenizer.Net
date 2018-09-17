@@ -52,5 +52,12 @@ namespace Jokenizer.Net.Tests {
             var v2 = TokenVisitor.ToFunc<string>(Tokenizer.Parse("@0"), "Rick");
             Assert.Equal("Rick", v1());
         }
+
+        [Fact]
+        public void ShouldEvaluateUnary() {
+            var v = TokenVisitor.ToFunc<bool>(Tokenizer.Parse("!IsActive"), new Dictionary<string, object> { { "IsActive", true } });
+
+            Assert.Equal(false, v());
+        }
     }
 }
