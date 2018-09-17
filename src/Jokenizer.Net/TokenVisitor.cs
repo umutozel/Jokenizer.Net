@@ -11,20 +11,6 @@ namespace Jokenizer.Net {
 
     public class TokenVisitor {
 
-        private TokenVisitor(Dictionary<string, object> variables, IEnumerable<object> parameters) {
-            this.variables = variables ?? new Dictionary<string, object>();
-
-            if (parameters != null) {
-                var i = 0;
-                parameters.ToList().ForEach(e => {
-                    var k = $"@{i++}";
-                    if (!this.variables.ContainsKey(k)) {
-                        this.variables.Add(k, e);
-                    }
-                });
-            }
-        }
-
         static Dictionary<char, ExpressionType> unary = new Dictionary<char, ExpressionType> { 
             { '-', ExpressionType.Negate },
             { '+', ExpressionType.UnaryPlus },
@@ -57,6 +43,20 @@ namespace Jokenizer.Net {
         readonly Dictionary<string, object> variables;
         IEnumerable<ParameterExpression> parameters = Enumerable.Empty<ParameterExpression>();
 
+        private TokenVisitor(Dictionary<string, object> variables, IEnumerable<object> parameters) {
+            this.variables = variables ?? new Dictionary<string, object>();
+
+            if (parameters != null) {
+                var i = 0;
+                parameters.ToList().ForEach(e => {
+                    var k = $"@{i++}";
+                    if (!this.variables.ContainsKey(k)) {
+                        this.variables.Add(k, e);
+                    }
+                });
+            }
+        }
+        
         public LambdaExpression Visit(Token token, IEnumerable<Type> parameters) {
             var oldParameters = this.parameters;
 
