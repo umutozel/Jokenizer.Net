@@ -43,5 +43,14 @@ namespace Jokenizer.Net.Tests {
             var v3 = TokenVisitor.ToFunc<object>(Tokenizer.Parse("null"));
             Assert.Equal(null, v3());
         }
+
+        [Fact]
+        public void ShouldEvaluateVariable() {
+            var v1 = TokenVisitor.ToFunc<string>(Tokenizer.Parse("Name"), new Dictionary<string, object> { { "Name", "Rick" } });
+            Assert.Equal("Rick", v1());
+
+            var v2 = TokenVisitor.ToFunc<string>(Tokenizer.Parse("@0"), "Rick");
+            Assert.Equal("Rick", v1());
+        }
     }
 }

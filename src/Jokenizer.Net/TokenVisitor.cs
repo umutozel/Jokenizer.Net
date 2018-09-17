@@ -40,10 +40,10 @@ namespace Jokenizer.Net {
             { "%", ExpressionType.Modulo }
         };
 
-        readonly Dictionary<string, object> variables;
+        readonly IDictionary<string, object> variables;
         IEnumerable<ParameterExpression> parameters = Enumerable.Empty<ParameterExpression>();
 
-        private TokenVisitor(Dictionary<string, object> variables, IEnumerable<object> parameters) {
+        private TokenVisitor(IDictionary<string, object> variables, IEnumerable<object> parameters) {
             this.variables = variables ?? new Dictionary<string, object>();
 
             if (parameters != null) {
@@ -134,7 +134,7 @@ namespace Jokenizer.Net {
 
         #region ToLambda
 
-        public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, Dictionary<string, object> variables,
+        public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
                                                 params object[] parameters) {
             return new TokenVisitor(variables, parameters).Visit(token, typeParameters);
         }
@@ -184,7 +184,7 @@ namespace Jokenizer.Net {
         #region ToFunc
 
         public static Func<TResult> ToFunc<TResult>(Token token, IDictionary<string, object> variables,
-                                                          params object[] parameters) {
+                                                    params object[] parameters) {
             return (Func<TResult>)ToLambda(token, null, variables, parameters).Compile();
         }
 
@@ -193,7 +193,7 @@ namespace Jokenizer.Net {
         }
 
         public static Func<T, TResult> ToFunc<T, TResult>(Token token, IDictionary<string, object> variables,
-                                                                        params object[] parameters) {
+                                                          params object[] parameters) {
             return (Func<T, TResult>)ToLambda(token, new[] { typeof(T) }, variables, parameters).Compile();
         }
 
@@ -202,7 +202,7 @@ namespace Jokenizer.Net {
         }
 
         public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(Token token, IDictionary<string, object> variables,
-                                                                                  params object[] parameters) {
+                                                                    params object[] parameters) {
             return (Func<T1, T2, TResult>)ToLambda(token, new[] { typeof(T1), typeof(T2) }, variables, parameters).Compile();
         }
 
@@ -211,7 +211,7 @@ namespace Jokenizer.Net {
         }
 
         public static Func<T1, T2, T3, TResult> ToFunc<T1, T2, T3, TResult>(Token token, IDictionary<string, object> variables,
-                                                                                          params object[] parameters) {
+                                                                            params object[] parameters) {
             return (Func<T1, T2, T3, TResult>)ToLambda(token, new[] { typeof(T1), typeof(T2), typeof(T3) }, variables, parameters).Compile();
         }
 

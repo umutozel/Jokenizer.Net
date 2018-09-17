@@ -60,6 +60,7 @@ namespace Jokenizer.Net {
             Skip();
 
             Token t = TryLiteral()
+                ?? TryParameter()
                 ?? TryVariable()
                 ?? TryUnary()
                 ?? (Token)TryGroup();
@@ -92,122 +93,121 @@ namespace Jokenizer.Net {
             return r;
         }
 
-        Token TryLiteral() {
+        LiteralToken tryNumber() {
+            var n = "";
 
-            LiteralToken tryNumber() {
-                var n = "";
-
-                void x() {
-                    while (Char.IsNumber(ch)) {
-                        n += ch;
-                        Move();
-                    }
-                }
-
-                x();
-                bool isFloat = false;
-                if (Get(separator)) {
-                    n += separator;
-                    x();
-                    isFloat = true;
-                }
-
-                if (n != "") {
-                    if (IsVariableStart())
-                        throw new Exception($"Unexpected character (${ch}) at index ${idx}");
-
-                    var val = isFloat ? float.Parse(n) : Convert.ChangeType(int.Parse(n), typeof(int));
-                    return new LiteralToken(val);
-                }
-
-                return null;
-            }
-
-            Token tryString() {
-                bool inter = false;
-                if (ch == '$') {
-                    inter = true;
+            void x() {
+                while (Char.IsNumber(ch)) {
+                    n += ch;
                     Move();
                 }
-                if (ch != '"') return null;
-
-                var q = ch;
-                var es = new List<Token>();
-                var s = "";
-
-                for (char c = Move(); !Done(); c = Move()) {
-                    if (c == q) {
-                        Move();
-
-                        if (es.Count > 0) {
-                            if (s != "") {
-                                es.Add(new LiteralToken(s));
-                            }
-
-                            return es.Aggregate(
-                                (Token)new LiteralToken(""),
-                                (p, n) => new BinaryToken("+", p, n)
-                            );
-                        }
-
-                        return new LiteralToken(s);
-                    }
-
-                    if (c == '\\') {
-                        c = Move();
-                        switch (c) {
-                            case 'a':
-                                s += '\a';
-                                break;
-                            case 'b':
-                                s += '\b';
-                                break;
-                            case 'f':
-                                s += '\f';
-                                break;
-                            case 'n':
-                                s += '\n';
-                                break;
-                            case 'r':
-                                s += '\r';
-                                break;
-                            case 't':
-                                s += '\t';
-                                break;
-                            case 'v':
-                                s += '\v';
-                                break;
-                            case '0':
-                                s += '\0';
-                                break;
-                            case '\\':
-                                s += '\\';
-                                break;
-                            case '"':
-                                s += '"';
-                                break;
-                            default:
-                                s += '\\' + c;
-                                break;
-                        }
-                    } else if (inter && Get("{")) {
-                        if (s != "") {
-                            es.Add(new LiteralToken(s));
-                            s = "";
-                        }
-                        es.Add(GetToken());
-
-                        Skip();
-                        if (ch != '}')
-                            throw new Exception($"Unterminated template literal at {idx}");
-                    } else {
-                        s += c;
-                    }
-                }
-
-                throw new Exception($"Unclosed quote after {s}");
             }
 
+            x();
+            bool isFloat = false;
+            if (Get(separator)) {
+                n += separator;
+                x();
+                isFloat = true;
+            }
+
+            if (n != "") {
+                if (IsVariableStart())
+                    throw new Exception($"Unexpected character (${ch}) at index ${idx}");
+
+                var val = isFloat ? float.Parse(n) : Convert.ChangeType(int.Parse(n), typeof(int));
+                return new LiteralToken(val);
+            }
+
+            return null;
+        }
+
+        Token tryString() {
+            bool inter = false;
+            if (ch == '$') {
+                inter = true;
+                Move();
+            }
+            if (ch != '"') return null;
+
+            var q = ch;
+            var es = new List<Token>();
+            var s = "";
+
+            for (char c = Move(); !Done(); c = Move()) {
+                if (c == q) {
+                    Move();
+
+                    if (es.Count > 0) {
+                        if (s != "") {
+                            es.Add(new LiteralToken(s));
+                        }
+
+                        return es.Aggregate(
+                            (Token)new LiteralToken(""),
+                            (p, n) => new BinaryToken("+", p, n)
+                        );
+                    }
+
+                    return new LiteralToken(s);
+                }
+
+                if (c == '\\') {
+                    c = Move();
+                    switch (c) {
+                        case 'a':
+                            s += '\a';
+                            break;
+                        case 'b':
+                            s += '\b';
+                            break;
+                        case 'f':
+                            s += '\f';
+                            break;
+                        case 'n':
+                            s += '\n';
+                            break;
+                        case 'r':
+                            s += '\r';
+                            break;
+                        case 't':
+                            s += '\t';
+                            break;
+                        case 'v':
+                            s += '\v';
+                            break;
+                        case '0':
+                            s += '\0';
+                            break;
+                        case '\\':
+                            s += '\\';
+                            break;
+                        case '"':
+                            s += '"';
+                            break;
+                        default:
+                            s += '\\' + c;
+                            break;
+                    }
+                } else if (inter && Get("{")) {
+                    if (s != "") {
+                        es.Add(new LiteralToken(s));
+                        s = "";
+                    }
+                    es.Add(GetToken());
+
+                    Skip();
+                    if (ch != '}')
+                        throw new Exception($"Unterminated template literal at {idx}");
+                } else {
+                    s += c;
+                }
+            }
+
+            throw new Exception($"Unclosed quote after {s}");
+        }
+
+        Token TryLiteral() {
             return tryNumber() ?? tryString();
         }
 
@@ -222,6 +222,16 @@ namespace Jokenizer.Net {
             }
 
             return v != "" ? new VariableToken(v) : null;
+        }
+
+        VariableToken TryParameter() {
+            if (!Get("@")) return null;
+
+            var t = tryNumber();
+            if (t == null || !(t.Value is int no))
+                throw new Exception($"Invalid parameter at {idx}");
+            
+            return new VariableToken("@" + t.Value);
         }
 
         UnaryToken TryUnary() {
