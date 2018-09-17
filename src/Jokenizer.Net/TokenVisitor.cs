@@ -83,7 +83,8 @@ namespace Jokenizer.Net {
 
                     throw new Exception($"Invalid method call");
                 case IndexerToken it:
-                    return Expression.ArrayIndex(Visit(it.Owner), Visit(it.Key));
+                    var o = Visit(it.Owner);
+                    return Expression.ArrayIndex(o, Visit(it.Key));
                 case LambdaToken lt:
                     throw new Exception($"Invalid lambda usage");
                 case LiteralToken lit:
@@ -113,7 +114,7 @@ namespace Jokenizer.Net {
                 return prm;
 
             if (this.variables.TryGetValue(name, out var value))
-                return Expression.Constant(value);
+                return Expression.Constant(value, value != null ? value.GetType() : typeof(object));
 
             throw new Exception($"Unknown variable {name}");
         }

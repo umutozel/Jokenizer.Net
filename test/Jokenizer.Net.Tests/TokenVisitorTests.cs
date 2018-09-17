@@ -82,5 +82,12 @@ namespace Jokenizer.Net.Tests {
 
             Assert.Equal("Rick", v2());
         }
+
+        [Fact]
+        public void ShouldEvaluateIndexer() {
+            var v = TokenVisitor.ToFunc<string>(Tokenizer.Parse("@0[0]"), null, new string[] { "Rick" }, null);
+
+            Assert.Equal("Rick", v());
+        }
     }
 }
