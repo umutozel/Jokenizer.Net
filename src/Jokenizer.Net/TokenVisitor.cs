@@ -13,7 +13,7 @@ namespace Jokenizer.Net {
 
         private TokenVisitor(Dictionary<string, object> variables, IEnumerable<object> parameters) {
             this.variables = variables ?? new Dictionary<string, object>();
-            
+
             if (parameters != null) {
                 var i = 0;
                 parameters.ToList().ForEach(e => {
@@ -24,6 +24,28 @@ namespace Jokenizer.Net {
                 });
             }
         }
+
+        static readonly Dictionary<string, ExpressionType> binary = new Dictionary<string, ExpressionType> {
+            { "&&", ExpressionType.And },
+            { "||", ExpressionType.OrElse },
+            { "??", ExpressionType.Coalesce },
+            { "|", ExpressionType.Or },
+            { "^", ExpressionType.ExclusiveOr },
+            { "&", ExpressionType.And },
+            { "==", ExpressionType.Equal },
+            { "!=", ExpressionType.NotEqual },
+            { "<=", ExpressionType.LessThanOrEqual },
+            { ">=", ExpressionType.GreaterThanOrEqual },
+            { "<", ExpressionType.LessThan },
+            { ">", ExpressionType.GreaterThan },
+            { "<<", ExpressionType.LeftShift },
+            { ">>", ExpressionType.RightShift },
+            { "+", ExpressionType.Add },
+            { "-", ExpressionType.Subtract },
+            { "*", ExpressionType.Multiply },
+            { "/", ExpressionType.Divide },
+            { "%", ExpressionType.Modulo }
+        };
 
         readonly Dictionary<string, object> variables;
         IEnumerable<ParameterExpression> parameters = Enumerable.Empty<ParameterExpression>();
@@ -82,16 +104,18 @@ namespace Jokenizer.Net {
             var prm = this.parameters.FirstOrDefault(p => p.Name == name);
             if (prm != null)
                 return prm;
-            
+
             if (this.variables.TryGetValue(name, out var value))
                 return Expression.Constant(value);
-            
+
             throw new Exception($"Unknown variable {name}");
         }
 
         static ExpressionType GetBinaryOp(string op) {
-            // todo:
-            return ExpressionType.Add;
+            if (binary.TryGetValue(op, out var et))
+                return et;
+
+            throw new Exception($"Unknown binary operator {op}");
         }
 
         static ExpressionType GetUnaryOp(char op) {
@@ -99,7 +123,7 @@ namespace Jokenizer.Net {
             return ExpressionType.UnaryPlus;
         }
 
-        public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, Dictionary<string, object> variables, 
+        public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, Dictionary<string, object> variables,
                                                 params object[] parameters) {
             return new TokenVisitor(variables, parameters).Visit(token, typeParameters);
         }
@@ -108,7 +132,7 @@ namespace Jokenizer.Net {
             return ToLambda(token, typeParameters, null, externals);
         }
 
-        public static Expression<Func<TResult>> ToLambda<TResult>(Token token, IDictionary<string, object> variables, 
+        public static Expression<Func<TResult>> ToLambda<TResult>(Token token, IDictionary<string, object> variables,
                                                                   params object[] parameters) {
             return (Expression<Func<TResult>>)ToLambda(token, null, variables, parameters);
         }
@@ -117,7 +141,7 @@ namespace Jokenizer.Net {
             return (Expression<Func<TResult>>)ToLambda(token, null, null, parameters);
         }
 
-        public static Expression<Func<T, TResult>> ToLambda<T, TResult>(Token token, IDictionary<string, object> variables, 
+        public static Expression<Func<T, TResult>> ToLambda<T, TResult>(Token token, IDictionary<string, object> variables,
                                                                         params object[] parameters) {
             return (Expression<Func<T, TResult>>)ToLambda(token, new[] { typeof(T) }, variables, parameters);
         }
@@ -126,7 +150,7 @@ namespace Jokenizer.Net {
             return (Expression<Func<T, TResult>>)ToLambda(token, new[] { typeof(T) }, null, parameters);
         }
 
-        public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(Token token, IDictionary<string, object> variables, 
+        public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(Token token, IDictionary<string, object> variables,
                                                                                   params object[] parameters) {
             return (Expression<Func<T1, T2, TResult>>)ToLambda(token, new[] { typeof(T1), typeof(T2) }, variables, parameters);
         }
@@ -135,7 +159,7 @@ namespace Jokenizer.Net {
             return (Expression<Func<T1, T2, TResult>>)ToLambda(token, new[] { typeof(T1), typeof(T2) }, parameters);
         }
 
-        public static Expression<Func<T1, T2, T3, TResult>> ToLambda<T1, T2, T3, TResult>(Token token, IDictionary<string, object> variables, 
+        public static Expression<Func<T1, T2, T3, TResult>> ToLambda<T1, T2, T3, TResult>(Token token, IDictionary<string, object> variables,
                                                                                           params object[] parameters) {
             return (Expression<Func<T1, T2, T3, TResult>>)ToLambda(token, new[] { typeof(T1), typeof(T2), typeof(T3) }, variables, parameters);
         }
