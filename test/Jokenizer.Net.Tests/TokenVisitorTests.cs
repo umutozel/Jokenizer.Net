@@ -68,5 +68,19 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal(4, o.a);
             Assert.Equal(2, o.b);
         }
+
+        [Fact]
+        public void ShouldEvaluateMember() {
+            var v1 = TokenVisitor.ToFunc<string>(
+                Tokenizer.Parse("Company.Name"), 
+                new Dictionary<string, object> { { "Company", new { Name = "Rick" } } }
+            );
+
+            Assert.Equal("Rick", v1());
+
+            var v2 = TokenVisitor.ToFunc<string>(Tokenizer.Parse("@0.Name"), new { Name = "Rick" });
+
+            Assert.Equal("Rick", v2());
+        }
     }
 }

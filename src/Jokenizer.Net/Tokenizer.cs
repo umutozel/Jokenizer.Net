@@ -60,8 +60,8 @@ namespace Jokenizer.Net {
             Skip();
 
             Token t = TryLiteral()
-                ?? TryParameter()
                 ?? TryVariable()
+                ?? TryParameter()
                 ?? TryUnary()
                 ?? (Token)TryGroup();
 
@@ -93,21 +93,22 @@ namespace Jokenizer.Net {
             return r;
         }
 
-        LiteralToken tryNumber() {
+        string GetNumber() {
             var n = "";
-
-            void x() {
-                while (Char.IsNumber(ch)) {
-                    n += ch;
-                    Move();
-                }
+            while (Char.IsNumber(ch)) {
+                n += ch;
+                Move();
             }
+            return n;
+        }
 
-            x();
+        LiteralToken TryNumber() {
+            var n = GetNumber();
+
             bool isFloat = false;
             if (Get(separator)) {
                 n += separator;
-                x();
+                n += GetNumber();
                 isFloat = true;
             }
 
@@ -122,7 +123,7 @@ namespace Jokenizer.Net {
             return null;
         }
 
-        Token tryString() {
+        Token TryString() {
             bool inter = false;
             if (ch == '$') {
                 inter = true;
@@ -208,7 +209,7 @@ namespace Jokenizer.Net {
         }
 
         Token TryLiteral() {
-            return tryNumber() ?? tryString();
+            return TryNumber() ?? TryString();
         }
 
         VariableToken TryVariable() {
@@ -227,11 +228,11 @@ namespace Jokenizer.Net {
         VariableToken TryParameter() {
             if (!Get("@")) return null;
 
-            var t = tryNumber();
-            if (t == null || !(t.Value is int no))
+            var n = GetNumber();
+            if (string.IsNullOrEmpty(n))
                 throw new Exception($"Invalid parameter at {idx}");
-            
-            return new VariableToken("@" + t.Value);
+
+            return new VariableToken("@" + n);
         }
 
         UnaryToken TryUnary() {
