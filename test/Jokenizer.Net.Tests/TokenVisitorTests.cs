@@ -25,11 +25,23 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldEvaluateInterpolatedString() {
-            var v1 = TokenVisitor.ToFunc<string>(Tokenizer.Parse<LiteralToken>("\"4\\\"2\""));
+            var v1 = TokenVisitor.ToFunc<string>(Tokenizer.Parse("\"4\\\"2\""));
             Assert.Equal("4\"2", v1());
 
-            var v2 = TokenVisitor.ToFunc<string>(Tokenizer.Parse<LiteralToken>("\"\\a\\b\\f\\n\\r\\t\\v\\0\\\"\\\\\""));
+            var v2 = TokenVisitor.ToFunc<string>(Tokenizer.Parse("\"\\a\\b\\f\\n\\r\\t\\v\\0\\\"\\\\\""));
             Assert.Equal("\a\b\f\n\r\t\v\0\"\\", v2());
+        }
+
+        [Fact]
+        public void ShouldEvaluteToKnownVariable() {
+            var v1 = TokenVisitor.ToFunc<bool>(Tokenizer.Parse("true"));
+            Assert.Equal(true, v1());
+
+            var v2 = TokenVisitor.ToFunc<bool>(Tokenizer.Parse("false"));
+            Assert.Equal(false, v2());
+
+            var v3 = TokenVisitor.ToFunc<object>(Tokenizer.Parse("null"));
+            Assert.Equal(null, v3());
         }
     }
 }

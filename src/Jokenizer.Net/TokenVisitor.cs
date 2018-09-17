@@ -87,7 +87,7 @@ namespace Jokenizer.Net {
                 case LambdaToken lt:
                     throw new Exception($"Invalid lambda usage");
                 case LiteralToken lit:
-                    return Expression.Constant(lit.Value, lit.Value != null ? lit.Value.GetType() : null);
+                    return Expression.Constant(lit.Value, lit.Value != null ? lit.Value.GetType() : typeof(object));
                 case MemberToken mt:
                     return Expression.PropertyOrField(Visit(mt.Owner), mt.Member.Name);
                 case ObjectToken ot:
