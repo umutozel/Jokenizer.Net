@@ -24,8 +24,8 @@ namespace Jokenizer.Net {
             }
         }
 
-        private readonly Dictionary<string, object> variables;
-        private IEnumerable<ParameterExpression> parameters = Enumerable.Empty<ParameterExpression>();
+        readonly Dictionary<string, object> variables;
+        IEnumerable<ParameterExpression> parameters = Enumerable.Empty<ParameterExpression>();
 
         public LambdaExpression Visit(Token token, IEnumerable<Type> parameters) {
             var oldParameters = this.parameters;
@@ -41,7 +41,7 @@ namespace Jokenizer.Net {
             return retVal;
         }
 
-        private Expression Visit(Token token) {
+        Expression Visit(Token token) {
             switch (token) {
                 case BinaryToken bt:
                     return Expression.MakeBinary(GetBinaryOp(bt.Operator), Visit(bt.Left), Visit(bt.Right));
@@ -74,7 +74,7 @@ namespace Jokenizer.Net {
             }
         }
 
-        private Expression GetVariable(string name) {
+        Expression GetVariable(string name) {
             var prm = this.parameters.FirstOrDefault(p => p.Name == name);
             if (prm != null)
                 return prm;
@@ -85,12 +85,12 @@ namespace Jokenizer.Net {
             throw new Exception($"Unknown variable {name}");
         }
 
-        private static ExpressionType GetBinaryOp(string op) {
+        static ExpressionType GetBinaryOp(string op) {
             // todo:
             return ExpressionType.Add;
         }
 
-        private static ExpressionType GetUnaryOp(char op) {
+        static ExpressionType GetUnaryOp(char op) {
             // todo:
             return ExpressionType.UnaryPlus;
         }
