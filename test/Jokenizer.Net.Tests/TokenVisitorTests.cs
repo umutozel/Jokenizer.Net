@@ -22,5 +22,11 @@ namespace Jokenizer.Net.Tests {
             var v = TokenVisitor.ToFunc<float>(Tokenizer.Parse("42.4242"));
             Assert.Equal(42.4242, v(), 1);
         }
+
+        [Fact]
+        public void ShouldEvaluateString() {
+            var v = TokenVisitor.ToFunc<string>(Tokenizer.Parse("\"4\'2\""));
+            Assert.Equal("4'2", v());
+        }
     }
 }
