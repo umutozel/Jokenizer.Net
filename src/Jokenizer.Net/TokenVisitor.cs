@@ -5,6 +5,7 @@ using System.Linq;
 using System.Linq.Expressions;
 
 namespace Jokenizer.Net {
+    using System.Reflection;
     using Dynamic;
     using Tokens;
 
@@ -46,13 +47,16 @@ namespace Jokenizer.Net {
                 case BinaryToken bt:
                     return Expression.MakeBinary(GetBinaryOp(bt.Operator), Visit(bt.Left), Visit(bt.Right));
                 case CallToken ct:
-                    var callee = Visit(ct.Callee);
                     // todo: method?
-                    return Expression.Call(callee, null, ct.Args.Select(a => Visit(a)));
+                    var callee = Visit(ct.Callee);
+                    if (callee is MemberExpression me)
+                        return Expression.Call(me.Expression, (MethodInfo)me.Member, ct.Args.Select(a => Visit(a)));
+
+                    throw new Exception($"Invalid method call");
                 case IndexerToken it:
                     return Expression.ArrayIndex(Visit(it.Owner), Visit(it.Key));
                 case LambdaToken lt:
-                    throw new Exception($"Invalid Lambda usage");
+                    throw new Exception($"Invalid lambda usage");
                 case LiteralToken lit:
                     return Expression.Constant(lit.Value);
                 case MemberToken mt:
