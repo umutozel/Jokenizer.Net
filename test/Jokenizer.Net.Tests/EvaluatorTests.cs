@@ -86,5 +86,12 @@ namespace Jokenizer.Net.Tests {
 
             Assert.Equal("Rick", v());
         }
+
+        [Fact]
+        public void ShouldEvaluateLambda() {
+            var v = Evaluator.ToFunc<int, int, bool>("(a, b) => a < b");
+
+            Assert.True(v(1, 2));
+        }
     }
 }
