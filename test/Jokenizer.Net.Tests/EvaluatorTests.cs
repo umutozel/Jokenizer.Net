@@ -56,7 +56,6 @@ namespace Jokenizer.Net.Tests {
         [Fact]
         public void ShouldEvaluateUnary() {
             var v = Evaluator.ToFunc<bool>("!IsActive", new Dictionary<string, object> { { "IsActive", true } });
-
             Assert.False(v());
         }
 
@@ -64,7 +63,6 @@ namespace Jokenizer.Net.Tests {
         public void ShouldEvaluateObject() {
             var v = Evaluator.ToFunc<dynamic>("new { a = 4, b = @0 }", 2);
             var o = v();
-
             Assert.Equal(4, o.a);
             Assert.Equal(2, o.b);
         }
@@ -72,26 +70,29 @@ namespace Jokenizer.Net.Tests {
         [Fact]
         public void ShouldEvaluateMember() {
             var v1 = Evaluator.ToFunc<string>("Company.Name", new Dictionary<string, object> { { "Company", new { Name = "Rick" } } });
-
             Assert.Equal("Rick", v1());
 
             var v2 = Evaluator.ToFunc<string>("@0.Name", new { Name = "Rick" });
-
             Assert.Equal("Rick", v2());
         }
 
         [Fact]
         public void ShouldEvaluateIndexer() {
             var v = Evaluator.ToFunc<string>("@0[0]", null, new string[] { "Rick" }, null);
-
             Assert.Equal("Rick", v());
         }
 
         [Fact]
         public void ShouldEvaluateLambda() {
             var v = Evaluator.ToFunc<int, int, bool>("(a, b) => a < b");
-
             Assert.True(v(1, 2));
+        }
+
+        [Fact]
+        public void ShouldEvaluateCall() {
+            var v = Evaluator.ToFunc<IEnumerable<int>, int>("items => items.Sum(i => i*2)");
+            var x = v(new[] { 1, 2, 3, 4, 5 });
+            Assert.Equal(30, x);
         }
     }
 }

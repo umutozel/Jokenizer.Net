@@ -57,15 +57,7 @@ namespace Jokenizer.Net {
         }
 
         public virtual LambdaExpression Visit(Token token, IEnumerable<Type> typeParameters, IEnumerable<ParameterExpression> parameters = null) {
-            parameters = parameters ?? Enumerable.Empty<ParameterExpression>();
-
-            if (token is LambdaToken lt) {
-                var prms = typeParameters.Zip(lt.Parameters, (pt, ps) => Expression.Parameter(pt, ps)).ToList();
-                var body = Visit(lt.Body, parameters.Concat(prms).ToList());
-                return Expression.Lambda(body, prms);
-            }
-
-            return Expression.Lambda(Visit(token, parameters));
+            return VisitLambda(token, typeParameters, parameters);
         }
 
         Expression Visit(Token token, IEnumerable<ParameterExpression> parameters) {
@@ -95,17 +87,50 @@ namespace Jokenizer.Net {
             }
         }
 
+        protected virtual LambdaExpression VisitLambda(Token token, IEnumerable<Type> typeParameters, IEnumerable<ParameterExpression> parameters = null) {
+            parameters = parameters ?? Enumerable.Empty<ParameterExpression>();
+
+            if (token is LambdaToken lt) {
+                var prms = typeParameters.Zip(lt.Parameters, (pt, ps) => Expression.Parameter(pt, ps)).ToList();
+                var body = Visit(lt.Body, parameters.Concat(prms).ToList());
+                return Expression.Lambda(body, prms);
+            }
+
+            return Expression.Lambda(Visit(token, parameters));
+        }
+
         protected virtual Expression VisitBinary(BinaryToken token, IEnumerable<ParameterExpression> parameters) {
             return Expression.MakeBinary(GetBinaryOp(token.Operator), Visit(token.Left, parameters), Visit(token.Right, parameters));
         }
 
         protected virtual Expression VisitCall(CallToken token, IEnumerable<ParameterExpression> parameters) {
-            // todo: method? lambda?
-            var callee = Visit(token.Callee, parameters);
-            if (callee is MemberExpression me)
-                return Expression.Call(me.Expression, (MethodInfo)me.Member, token.Args.Select(a => Visit(a, parameters)));
+            if (!(token.Callee is MemberToken mt))
+                throw new Exception("Invalid method call");
 
-            throw new Exception($"Invalid method call");
+            var instance = Visit(mt.Owner, parameters);
+            var (method, isExtension) = GetMethod(instance, mt.Member.Name, token.Args.Length);
+            var args = method.GetParameters().Skip(isExtension ? 1 : 0).Zip(token.Args, (p, a) => {
+                if (a.Type != TokenType.Lambda)
+                    return Visit(a, parameters);
+                
+                var g = p.ParameterType.GetGenericArguments();
+                return VisitLambda(a, g.Take(g.Length - 1), parameters);
+            });
+            
+            return isExtension 
+                ? Expression.Call(null, method, new[] {instance}.Concat(args)) 
+                : Expression.Call(instance, method, args);
+        }
+
+        private (MethodInfo method, bool isExtension) GetMethod(Expression owner, string name, int parameterCount) {
+            var method = owner.Type.GetMethods().FirstOrDefault(m => m.Name == name && parameterCount == m.GetParameters().Count());
+            if (method != null) return (method, false);
+
+            var extension = ExtensionMethods.GetExtensionMethod(owner.Type, name, parameterCount);
+            if (extension == null)
+                throw new Exception($"Could not find instance or extension method for {name}");
+            
+            return (extension, true);
         }
 
         protected virtual Expression VisitIndexer(IndexerToken token, IEnumerable<ParameterExpression> parameters) {
@@ -146,6 +171,11 @@ namespace Jokenizer.Net {
 
             if (this.variables.TryGetValue(name, out var value))
                 return Expression.Constant(value, value != null ? value.GetType() : typeof(object));
+
+            if (parameters.Count() == 1) {
+                var owner = parameters.First();
+                return Expression.PropertyOrField(owner, token.Name);
+            }
 
             throw new Exception($"Unknown variable {name}");
         }
