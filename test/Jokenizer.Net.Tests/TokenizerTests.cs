@@ -43,13 +43,13 @@ namespace Jokenizer.Net.Tests {
         [Fact]
         public void ShouldReturnLiteralTokenForKnownVariables() {
             var e1 = Tokenizer.Parse<LiteralToken>("true");
-            Assert.Equal(true, e1.Value);
+            Assert.True((bool)e1.Value);
 
             var e2 = Tokenizer.Parse<LiteralToken>("false");
-            Assert.Equal(false, e2.Value);
+            Assert.False((bool)e2.Value);
 
             var e3 = Tokenizer.Parse<LiteralToken>("null");
-            Assert.Equal(null, e3.Value);
+            Assert.Null(e3.Value);
         }
 
         [Fact]

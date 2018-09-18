@@ -11,7 +11,7 @@ namespace Jokenizer.Net {
 
     public class TokenVisitor {
 
-        static Dictionary<char, ExpressionType> unary = new Dictionary<char, ExpressionType> {
+        static readonly Dictionary<char, ExpressionType> unary = new Dictionary<char, ExpressionType> {
             { '-', ExpressionType.Negate },
             { '+', ExpressionType.UnaryPlus },
             { '!', ExpressionType.Not },
@@ -41,9 +41,8 @@ namespace Jokenizer.Net {
         };
 
         readonly IDictionary<string, object> variables;
-        IEnumerable<ParameterExpression> parameters = Enumerable.Empty<ParameterExpression>();
 
-        private TokenVisitor(IDictionary<string, object> variables, IEnumerable<object> parameters) {
+        public TokenVisitor(IDictionary<string, object> variables, IEnumerable<object> parameters) {
             this.variables = variables ?? new Dictionary<string, object>();
 
             if (parameters != null) {
@@ -57,59 +56,90 @@ namespace Jokenizer.Net {
             }
         }
 
-        public LambdaExpression Visit(Token token, IEnumerable<Type> parameters) {
-            var oldParameters = this.parameters;
+        public virtual LambdaExpression Visit(Token token, IEnumerable<Type> types, IEnumerable<ParameterExpression> parameters = null) {
+            parameters = parameters ?? Enumerable.Empty<ParameterExpression>();
 
-            var prms = token is LambdaToken lt
-                ? parameters.Zip(lt.Parameters, (pt, ps) => Expression.Parameter(pt, ps))
-                : Enumerable.Empty<ParameterExpression>();
+            if (token is LambdaToken lt) {
+                var prms = types.Zip(lt.Parameters, (pt, ps) => Expression.Parameter(pt, ps));
+                return Expression.Lambda(Visit(lt.Body, parameters.Concat(prms)), prms);
+            }
 
-            this.parameters = this.parameters.Concat(prms);
-            var retVal = Expression.Lambda(Visit(token), this.parameters);
-            this.parameters = oldParameters;
-
-            return retVal;
+            return Expression.Lambda(Visit(token, parameters));
         }
 
-        Expression Visit(Token token) {
+        Expression Visit(Token token, IEnumerable<ParameterExpression> parameters) {
             switch (token) {
                 case BinaryToken bt:
-                    return Expression.MakeBinary(GetBinaryOp(bt.Operator), Visit(bt.Left), Visit(bt.Right));
+                    return VisitBinary(bt, parameters);
                 case CallToken ct:
-                    // todo: method?
-                    var callee = Visit(ct.Callee);
-                    if (callee is MemberExpression me)
-                        return Expression.Call(me.Expression, (MethodInfo)me.Member, ct.Args.Select(a => Visit(a)));
-
-                    throw new Exception($"Invalid method call");
+                    return VisitCall(ct, parameters);
                 case IndexerToken it:
-                    var o = Visit(it.Owner);
-                    return Expression.ArrayIndex(o, Visit(it.Key));
+                    return VisitIndexer(it, parameters);
                 case LambdaToken lt:
                     throw new Exception($"Invalid lambda usage");
                 case LiteralToken lit:
-                    return Expression.Constant(lit.Value, lit.Value != null ? lit.Value.GetType() : typeof(object));
+                    return VisitLiteral(lit, parameters);
                 case MemberToken mt:
-                    return Expression.PropertyOrField(Visit(mt.Owner), mt.Member.Name);
+                    return VisitMember(mt, parameters);
                 case ObjectToken ot:
-                    var props = ot.Members.Select(m => new { m.Name, Right = Visit(m.Right) });
-                    var type = ClassFactory.Instance.GetDynamicClass(props.Select(p => new DynamicProperty(p.Name, p.Right.Type)));
-                    var newExp = Expression.New(type.GetConstructors().First());
-                    var bindings = props.Select(p => Expression.Bind(type.GetProperty(p.Name), p.Right));
-                    return Expression.MemberInit(newExp, bindings);
+                    return VisitObject(ot, parameters);
                 case TernaryToken tt:
-                    return Expression.Condition(Visit(tt.Predicate), Visit(tt.WhenTrue), Visit(tt.WhenFalse));
+                    return VisitTernary(tt, parameters);
                 case UnaryToken ut:
-                    return Expression.MakeUnary(GetUnaryOp(ut.Operator), Visit(ut.Target), null);
+                    return VisitUnary(ut, parameters);
                 case VariableToken vt:
-                    return GetVariable(vt.Name);
+                    return VisitVariable(vt, parameters);
                 default:
                     throw new Exception($"Unsupported token type {token.Type}");
             }
         }
 
-        Expression GetVariable(string name) {
-            var prm = this.parameters.FirstOrDefault(p => p.Name == name);
+        protected virtual Expression VisitBinary(BinaryToken token, IEnumerable<ParameterExpression> parameters) {
+            return Expression.MakeBinary(GetBinaryOp(token.Operator), Visit(token.Left, parameters), Visit(token.Right, parameters));
+        }
+
+        protected virtual Expression VisitCall(CallToken token, IEnumerable<ParameterExpression> parameters) {
+            // todo: method? lambda?
+            var callee = Visit(token.Callee, parameters);
+            if (callee is MemberExpression me)
+                return Expression.Call(me.Expression, (MethodInfo)me.Member, token.Args.Select(a => Visit(a, parameters)));
+
+            throw new Exception($"Invalid method call");
+        }
+
+        protected virtual Expression VisitIndexer(IndexerToken token, IEnumerable<ParameterExpression> parameters) {
+            // todo: other than array?
+            return Expression.ArrayIndex(Visit(token.Owner, parameters), Visit(token.Key, parameters));
+        }
+
+        protected virtual Expression VisitLiteral(LiteralToken token, IEnumerable<ParameterExpression> parameters) {
+            return Expression.Constant(token.Value, token.Value != null ? token.Value.GetType() : typeof(object));
+        }
+
+        protected virtual Expression VisitMember(MemberToken token, IEnumerable<ParameterExpression> parameters) {
+            return Expression.PropertyOrField(Visit(token.Owner, parameters), token.Member.Name);
+        }
+
+        protected virtual Expression VisitObject(ObjectToken token, IEnumerable<ParameterExpression> parameters) {
+            var props = token.Members.Select(m => new { m.Name, Right = Visit(m.Right, parameters) });
+            var type = ClassFactory.Instance.GetDynamicClass(props.Select(p => new DynamicProperty(p.Name, p.Right.Type)));
+            var newExp = Expression.New(type.GetConstructors().First());
+            var bindings = props.Select(p => Expression.Bind(type.GetProperty(p.Name), p.Right));
+
+            return Expression.MemberInit(newExp, bindings);
+        }
+
+        protected virtual Expression VisitTernary(TernaryToken token, IEnumerable<ParameterExpression> parameters) {
+            return Expression.Condition(Visit(token.Predicate, parameters), Visit(token.WhenTrue, parameters), Visit(token.WhenFalse, parameters));
+        }
+
+        protected virtual Expression VisitUnary(UnaryToken token, IEnumerable<ParameterExpression> parameters) {
+            return Expression.MakeUnary(GetUnaryOp(token.Operator), Visit(token.Target, parameters), null);
+        }
+
+        protected virtual Expression VisitVariable(VariableToken token, IEnumerable<ParameterExpression> parameters) {
+            var name = token.Name;
+            var prm = parameters.FirstOrDefault(p => p.Name == name);
             if (prm != null)
                 return prm;
 
@@ -132,94 +162,5 @@ namespace Jokenizer.Net {
 
             throw new Exception($"Unknown unary operator {op}");
         }
-
-        #region ToLambda
-
-        public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
-                                                params object[] parameters) {
-            return new TokenVisitor(variables, parameters).Visit(token, typeParameters);
-        }
-
-        public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, params object[] externals) {
-            return ToLambda(token, typeParameters, null, externals);
-        }
-
-        public static Expression<Func<TResult>> ToLambda<TResult>(Token token, IDictionary<string, object> variables,
-                                                                  params object[] parameters) {
-            return (Expression<Func<TResult>>)ToLambda(token, null, variables, parameters);
-        }
-
-        public static Expression<Func<TResult>> ToLambda<TResult>(Token token, params object[] parameters) {
-            return (Expression<Func<TResult>>)ToLambda(token, null, null, parameters);
-        }
-
-        public static Expression<Func<T, TResult>> ToLambda<T, TResult>(Token token, IDictionary<string, object> variables,
-                                                                        params object[] parameters) {
-            return (Expression<Func<T, TResult>>)ToLambda(token, new[] { typeof(T) }, variables, parameters);
-        }
-
-        public static Expression<Func<T, TResult>> ToLambda<T, TResult>(Token token, params object[] parameters) {
-            return (Expression<Func<T, TResult>>)ToLambda(token, new[] { typeof(T) }, null, parameters);
-        }
-
-        public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(Token token, IDictionary<string, object> variables,
-                                                                                  params object[] parameters) {
-            return (Expression<Func<T1, T2, TResult>>)ToLambda(token, new[] { typeof(T1), typeof(T2) }, variables, parameters);
-        }
-
-        public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(Token token, params object[] parameters) {
-            return (Expression<Func<T1, T2, TResult>>)ToLambda(token, new[] { typeof(T1), typeof(T2) }, parameters);
-        }
-
-        public static Expression<Func<T1, T2, T3, TResult>> ToLambda<T1, T2, T3, TResult>(Token token, IDictionary<string, object> variables,
-                                                                                          params object[] parameters) {
-            return (Expression<Func<T1, T2, T3, TResult>>)ToLambda(token, new[] { typeof(T1), typeof(T2), typeof(T3) }, variables, parameters);
-        }
-
-        public static Expression<Func<T1, T2, T3, TResult>> ToLambda<T1, T2, T3, TResult>(Token token, params object[] parameters) {
-            return (Expression<Func<T1, T2, T3, TResult>>)ToLambda(token, new[] { typeof(T1), typeof(T2), typeof(T3) }, parameters);
-        }
-
-        #endregion
-
-        #region ToFunc
-
-        public static Func<TResult> ToFunc<TResult>(Token token, IDictionary<string, object> variables,
-                                                    params object[] parameters) {
-            return (Func<TResult>)ToLambda(token, null, variables, parameters).Compile();
-        }
-
-        public static Func<TResult> ToFunc<TResult>(Token token, params object[] parameters) {
-            return (Func<TResult>)ToLambda(token, null, null, parameters).Compile();
-        }
-
-        public static Func<T, TResult> ToFunc<T, TResult>(Token token, IDictionary<string, object> variables,
-                                                          params object[] parameters) {
-            return (Func<T, TResult>)ToLambda(token, new[] { typeof(T) }, variables, parameters).Compile();
-        }
-
-        public static Func<T, TResult> ToFunc<T, TResult>(Token token, params object[] parameters) {
-            return (Func<T, TResult>)ToLambda(token, new[] { typeof(T) }, null, parameters).Compile();
-        }
-
-        public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(Token token, IDictionary<string, object> variables,
-                                                                    params object[] parameters) {
-            return (Func<T1, T2, TResult>)ToLambda(token, new[] { typeof(T1), typeof(T2) }, variables, parameters).Compile();
-        }
-
-        public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(Token token, params object[] parameters) {
-            return (Func<T1, T2, TResult>)ToLambda(token, new[] { typeof(T1), typeof(T2) }, parameters).Compile();
-        }
-
-        public static Func<T1, T2, T3, TResult> ToFunc<T1, T2, T3, TResult>(Token token, IDictionary<string, object> variables,
-                                                                            params object[] parameters) {
-            return (Func<T1, T2, T3, TResult>)ToLambda(token, new[] { typeof(T1), typeof(T2), typeof(T3) }, variables, parameters).Compile();
-        }
-
-        public static Func<T1, T2, T3, TResult> ToFunc<T1, T2, T3, TResult>(Token token, params object[] parameters) {
-            return (Func<T1, T2, T3, TResult>)ToLambda(token, new[] { typeof(T1), typeof(T2), typeof(T3) }, parameters).Compile();
-        }
-
-        #endregion
     }
 }
