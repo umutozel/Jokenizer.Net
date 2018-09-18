@@ -128,7 +128,7 @@ namespace Jokenizer.Net {
 
             var extension = ExtensionMethods.GetExtensionMethod(owner.Type, name, parameterCount);
             if (extension == null)
-                throw new Exception($"Could not find instance or extension method for {name}");
+                throw new Exception($"Could not find instance or extension method for {name} for {owner.Type}");
             
             return (extension, true);
         }

@@ -90,9 +90,11 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldEvaluateCall() {
-            var v = Evaluator.ToFunc<IEnumerable<int>, int>("items => items.Sum(i => i*2)");
-            var x = v(new[] { 1, 2, 3, 4, 5 });
-            Assert.Equal(30, x);
+            var v1 = Evaluator.ToFunc<IEnumerable<int>, int>("items => items.Sum(i => i*2)");
+            Assert.Equal(30, v1(new[] { 1, 2, 3, 4, 5 }));
+
+            var v2 = Evaluator.ToFunc<string>("\"RICK\".ToLower()");
+            Assert.Equal("rick", v2());
         }
     }
 }
