@@ -1,0 +1,3 @@
+language: csharp
+solution: solution-name.sln
+  - dotnet test test/Jokenizer.Net.Tests /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput='../../coverage/lcov.info'
