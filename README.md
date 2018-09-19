@@ -3,7 +3,7 @@ C# Expression parser, inspired from jokenizer project.
 
 [![Build status](https://ci.appveyor.com/api/projects/status/ytmg0iw1qmynl3fd?svg=true)](https://ci.appveyor.com/project/umutozel/jokenizer-net)
 [![Coverage Status](https://coveralls.io/repos/github/umutozel/Jokenizer.Net/badge.svg?branch=master)](https://coveralls.io/github/umutozel/Jokenizer.Net?branch=master)
-[![NuGet Badge](https://buildstats.info/nuget/jokenizer-net)](https://www.nuget.org/packages/jokenizer-net/)
+[![NuGet Badge](https://buildstats.info/nuget/Jokenizer.Net)](https://www.nuget.org/packages/Jokenizer.Net/)
 [![GitHub issues](https://img.shields.io/github/issues/umutozel/Jokenizer.Net.svg)](https://github.com/umutozel/Jokenizer.Net/issues)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/umutozel/Jokenizer.Net/master/LICENSE)
 
