@@ -99,5 +99,11 @@ namespace Jokenizer.Net.Tests {
             var v3 = Evaluator.ToFunc<string>("\"RICK\".ToLower()");
             Assert.Equal("rick", v3());
         }
+
+        [Fact]
+        public void ShouldEvaluateTernary() {
+            var v = Evaluator.ToFunc<int>("@0 ? 42 : 21", true);
+            Assert.Equal(42, v());
+        }
     }
 }
