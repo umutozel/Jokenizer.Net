@@ -10,23 +10,24 @@ namespace Jokenizer.Net {
         private static HashSet<MethodInfo> extensions = new HashSet<MethodInfo>();
 
         static ExtensionMethods() {
-            ScanType(typeof(Queryable));
-            ScanType(typeof(Enumerable));
+            ScanTypes(typeof(Queryable), typeof(Enumerable));
         }
 
-        public static IEnumerable<MethodInfo> ProbeAllAssemblies() {
+        public static IList<MethodInfo> ProbeAllAssemblies() {
             return ProbeAssemblies(Assembly.GetEntryAssembly().GetReferencedAssemblies().Select(Assembly.Load));
         }
 
-        public static IEnumerable<MethodInfo> ProbeAssemblies(IEnumerable<Assembly> assemblies) => assemblies.SelectMany(ProbeAssembly);
+        public static IList<MethodInfo> ProbeAssemblies(params Assembly[] assemblies) => assemblies.SelectMany(ProbeAssembly).ToList();
+        public static IList<MethodInfo> ProbeAssemblies(IEnumerable<Assembly> assemblies) => assemblies.SelectMany(ProbeAssembly).ToList();
 
-        public static IEnumerable<MethodInfo> ProbeAssembly(Assembly assembly) {
-            return ScanTypes(assembly.GetTypes().Where(t => t.IsSealed && !t.IsGenericType && !t.IsNested)).ToList();
+        public static IList<MethodInfo> ProbeAssembly(Assembly assembly) {
+            return ScanTypes(assembly.GetTypes().Where(t => t.IsSealed && !t.IsGenericType && !t.IsNested));
         }
 
-        public static IEnumerable<MethodInfo> ScanTypes(IEnumerable<Type> types) => types.SelectMany(ScanType);
+        public static IList<MethodInfo> ScanTypes(params Type[] types) => types.SelectMany(ScanType).ToList();
+        public static IList<MethodInfo> ScanTypes(IEnumerable<Type> types) => types.SelectMany(ScanType).ToList();
 
-        public static IEnumerable<MethodInfo> ScanType(Type type) {
+        public static IList<MethodInfo> ScanType(Type type) {
             var methods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
                 .Where(m => m.IsDefined(typeof(ExtensionAttribute), false))
                 .ToList();

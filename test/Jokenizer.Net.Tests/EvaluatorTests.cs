@@ -13,7 +13,7 @@ namespace Jokenizer.Net.Tests {
 
         static EvaluatorTests() {
             ExtensionMethods.ProbeAllAssemblies();
-            ExtensionMethods.ProbeAssembly(typeof(Extensions).Assembly);
+            ExtensionMethods.ProbeAssemblies(typeof(Extensions).Assembly);
         }
 
         [Fact]
