@@ -29,12 +29,18 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
-        public void ShouldEvaluateInterpolatedString() {
+        public void ShouldEvaluateString() {
             var v1 = Evaluator.ToFunc<string>("\"4\\\"2\"");
             Assert.Equal("4\"2", v1());
 
             var v2 = Evaluator.ToFunc<string>("\"\\a\\b\\f\\n\\r\\t\\v\\0\\\"\\\\\"");
             Assert.Equal("\a\b\f\n\r\t\v\0\"\\", v2());
+        }
+
+        [Fact]
+        public void ShouldEvaluateInterpolatedString() {
+            var v = Evaluator.ToFunc<string>("$\"don't {@0}, 42\"", "panic");
+            Assert.Equal("don't panic, 42", v());
         }
 
         [Fact]
@@ -62,6 +68,8 @@ namespace Jokenizer.Net.Tests {
         public void ShouldEvaluateUnary() {
             var v = Evaluator.ToFunc<bool>("!IsActive", new Dictionary<string, object> { { "IsActive", true } });
             Assert.False(v());
+
+            Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new UnaryToken('/', new LiteralToken(1))));
         }
 
         [Fact]
@@ -92,15 +100,6 @@ namespace Jokenizer.Net.Tests {
         public void ShouldEvaluateIndexer() {
             var v = Evaluator.ToFunc<string>("@0[0]", null, new string[] { "Rick" }, null);
             Assert.Equal("Rick", v());
-        }
-
-        [Fact]
-        public void ShouldEvaluateBinary() {
-            var v1 = Evaluator.ToFunc<bool>("@0 > @1", 4, 2);
-            Assert.True(v1());
-
-            var v2 = Evaluator.ToFunc<string>("$\"don't {@0}, 42\"", "panic");
-            Assert.Equal("don't panic, 42", v2());
         }
 
         [Fact]
@@ -136,6 +135,14 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
+        public void ShouldEvaluateBinary() {
+            var v = Evaluator.ToFunc<bool>("@0 > @1", 4, 2);
+            Assert.True(v());
+
+            Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new BinaryToken("!", new LiteralToken(1), new LiteralToken(2))));
+        }
+
+        [Fact]
         public void ShouldEvaluateBinaryWithCorrectPrecedence() {
             var v = Evaluator.ToFunc<int>("1 + 2 * 3");
             Assert.Equal(7, v());
@@ -144,12 +151,6 @@ namespace Jokenizer.Net.Tests {
         [Fact]
         public void ShouldThrowForUnknownToken() {
             Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new UnkownToken()));
-        }
-
-        [Fact]
-        public void ShouldThrowForUnknownOps() {
-            Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new BinaryToken("!", new LiteralToken(1), new LiteralToken(2))));
-            Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new UnaryToken('/', new LiteralToken(1))));
         }
 
         [Fact]
