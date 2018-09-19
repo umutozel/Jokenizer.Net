@@ -1,0 +1,39 @@
+version: 1.0.{build}
+
+image: Visual Studio 2017
+
+configuration: Release
+
+assembly_info:
+  patch: true
+  file: '**\AssemblyInfo.*'
+  assembly_version: '{version}'
+  assembly_file_version: '{version}'
+  assembly_informational_version: '{version}'
+  
+build:
+  project: .\Jokenizer.Net.sln
+  verbosity: minimal
+  
+before_build:
+  - dotnet restore
+
+after_build:
+- dotnet pack src\Jokenizer.Net\Jokenizer.Net.csproj -c Release /p:Version=%appveyor_build_version%
+- appveyor PushArtifact src\Jokenizer.Net\bin\Release\Jokenizer.Net.%appveyor_build_version%.nupkg
+
+test_script:
+- dotnet test -c %CONFIGURATION% test\Jokenizer.Net.Tests\Jokenizer.Net.Tests.csproj
+- nuget install OpenCover -Version 4.6.519 -OutputDirectory tools
+- .\tools\OpenCover.4.6.519\tools\OpenCover.Console.exe -target:"c:\Program Files\dotnet\dotnet.exe" -targetargs:"test -c %CONFIGURATION% test/Jokenizer.Net.Tests/Jokenizer.Net.Tests.csproj" -output:opencoverCoverage.xml -oldStyle -register:user
+- nuget install coveralls.net -Version 0.7.0 -OutputDirectory tools
+- .\tools\coveralls.net.0.7.0\tools\csmacnz.Coveralls.exe --opencover -i opencoverCoverage.xml --repoToken "%COVERALLS_REPO_TOKEN%" --useRelativePaths --commitId "%APPVEYOR_REPO_COMMIT%" --commitBranch "%APPVEYOR_REPO_BRANCH%" --commitAuthor "%APPVEYOR_REPO_COMMIT_AUTHOR%" --commitEmail "%APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL%" --commitMessage "%APPVEYOR_REPO_COMMIT_MESSAGE%" --jobId "%APPVEYOR_BUILD_NUMBER%" --serviceName appveyor
+
+deploy:
+  provider: NuGet
+  api_key:
+    secure: hQY0HMU8ADJvqFfivG/Z0+h2Nz8xFCFd64ERHhaTFc3SzRy3Kz8C3FE8tiJMqMjz
+  skip_symbols: false
+  artifact: /.Jokenizer.Net*\.nupkg/
+  on:
+    appveyor_repo_tag: true
