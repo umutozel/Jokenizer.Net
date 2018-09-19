@@ -23,7 +23,6 @@ dotnet add package Jokenizer.Net
 var expression = Tokenizer.Parse("(a, b) => a < b");
 var func = Evaluator.ToFunc<int, int, bool>(expression);
 var result = func(1, 2);    // true
-*/
 ```
 
 # License
