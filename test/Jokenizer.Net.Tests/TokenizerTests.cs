@@ -89,7 +89,7 @@ namespace Jokenizer.Net.Tests {
             var ve = me.Owner as VariableToken;
             Assert.Equal("Company", ve.Name);
 
-            Assert.Equal("Name", me.Member.Name);
+            Assert.Equal("Name", me.Member);
         }
 
         [Fact]

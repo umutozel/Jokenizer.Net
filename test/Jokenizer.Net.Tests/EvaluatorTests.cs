@@ -93,8 +93,11 @@ namespace Jokenizer.Net.Tests {
             var v1 = Evaluator.ToFunc<IEnumerable<int>, int>("items => items.Sum(i => i*2)");
             Assert.Equal(30, v1(new[] { 1, 2, 3, 4, 5 }));
 
-            var v2 = Evaluator.ToFunc<string>("\"RICK\".ToLower()");
-            Assert.Equal("rick", v2());
+            var v2 = Evaluator.ToFunc<IEnumerable<int>, int>("Sum(i => i*2)");
+            Assert.Equal(30, v2(new[] { 1, 2, 3, 4, 5 }));
+
+            var v3 = Evaluator.ToFunc<string>("\"RICK\".ToLower()");
+            Assert.Equal("rick", v3());
         }
     }
 }

@@ -212,7 +212,7 @@ namespace Jokenizer.Net {
             return TryNumber() ?? TryString();
         }
 
-        VariableToken TryVariable() {
+        string GetVariableName() {
             var v = "";
 
             if (IsVariableStart()) {
@@ -222,6 +222,11 @@ namespace Jokenizer.Net {
                 } while (StillVariable());
             }
 
+            return v;
+        }
+
+        VariableToken TryVariable() {
+            var v = GetVariableName();
             return v != "" ? new VariableToken(v) : null;
         }
 
@@ -292,8 +297,8 @@ namespace Jokenizer.Net {
             if (!Get(".")) return null;
 
             Skip();
-            var v = TryVariable() as IVariableToken;
-            if (v == null) throw new Exception($"Invalid member identifier at {idx}");
+            var v = GetVariableName();
+            if (string.IsNullOrEmpty(v)) throw new Exception($"Invalid member identifier at {idx}");
 
             return new MemberToken(t, v);
         }
