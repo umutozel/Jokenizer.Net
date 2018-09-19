@@ -95,7 +95,7 @@ namespace Jokenizer.Net {
 
         string GetNumber() {
             var n = "";
-            while (Char.IsNumber(ch)) {
+            while (IsNumber()) {
                 n += ch;
                 Move();
             }
@@ -187,7 +187,7 @@ namespace Jokenizer.Net {
                             s += '"';
                             break;
                         default:
-                            s += '\\' + c;
+                            s += "\\" + c;
                             break;
                     }
                 } else if (inter && Get("{")) {
@@ -274,17 +274,17 @@ namespace Jokenizer.Net {
             var es = new List<AssignToken>();
             do {
                 Skip();
-                var vt = TryVariable();
-                if (vt == null)
+                var member = GetVariableName();
+                if (string.IsNullOrEmpty(member))
                     throw new Exception($"Invalid assignment at {idx}");
 
                 Skip();
                 if (Get("=")) {
                     Skip();
 
-                    es.Add(new AssignToken(vt.Name, GetToken()));
+                    es.Add(new AssignToken(member, GetToken()));
                 } else {
-                    es.Add(new AssignToken(vt.Name, vt));
+                    es.Add(new AssignToken(member, new VariableToken(member)));
                 }
             } while (Get(","));
 
@@ -308,8 +308,6 @@ namespace Jokenizer.Net {
 
             Skip();
             var k = GetToken();
-            if (k == null) throw new Exception($"Invalid indexer identifier at {idx}");
-
             To("]");
 
             return new IndexerToken(t, k);
@@ -386,7 +384,7 @@ namespace Jokenizer.Net {
         }
 
         bool StillVariable() {
-            return IsVariableStart() || Char.IsNumber(ch);
+            return IsVariableStart() || IsNumber();
         }
 
         bool Done() {
@@ -421,7 +419,7 @@ namespace Jokenizer.Net {
             Skip();
 
             if (!Eq(idx, c))
-                throw new Exception($"Expected {c} at index {idx}, found {exp[idx]}");
+                throw new Exception($"Expected {c} at index {idx}, found {ch}");
 
             Move(c.Length);
         }

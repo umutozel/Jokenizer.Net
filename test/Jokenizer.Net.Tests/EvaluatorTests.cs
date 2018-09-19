@@ -11,6 +11,10 @@ namespace Jokenizer.Net.Tests {
 
     public class EvaluatorTests {
 
+        static EvaluatorTests() {
+            ExtensionMethods.AddExtensionFinder((Type type, string name, int paramCount) => typeof(Extensions).GetMethod(name));
+        }
+
         [Fact]
         public void ShouldEvaluateNumber() {
             var v = Evaluator.ToFunc<int>("42");
@@ -65,6 +69,8 @@ namespace Jokenizer.Net.Tests {
             var o = v();
             Assert.Equal(4, o.a);
             Assert.Equal(2, o.b);
+            var s = o.ToString();
+            Assert.Equal("{a=4, b=2}", s);
         }
 
         [Fact]
@@ -74,6 +80,11 @@ namespace Jokenizer.Net.Tests {
 
             var v2 = Evaluator.ToFunc<string>("@0.Name", new { Name = "Rick" });
             Assert.Equal("Rick", v2());
+
+            var v3 = Evaluator.ToFunc<Company, string>("Name");
+            Assert.Equal("Netflix", v3(new Company { Name = "Netflix" }));
+
+            Assert.Throws<Exception>(() => Evaluator.ToFunc<Company, int, string>("Address"));
         }
 
         [Fact]
@@ -86,15 +97,17 @@ namespace Jokenizer.Net.Tests {
         public void ShouldEvaluateBinary() {
             var v1 = Evaluator.ToFunc<bool>("@0 > @1", 4, 2);
             Assert.True(v1());
-            
+
             var v2 = Evaluator.ToFunc<string>("$\"don't {@0}, 42\"", "panic");
             Assert.Equal("don't panic, 42", v2());
         }
-        
+
         [Fact]
         public void ShouldEvaluateLambda() {
             var v = Evaluator.ToFunc<int, int, bool>("(a, b) => a < b");
             Assert.True(v(1, 2));
+
+            Assert.Throws<Exception>(() => Evaluator.ToFunc<int, int, bool>("4 < (a, b) => a < b"));
         }
 
         [Fact]
@@ -107,6 +120,12 @@ namespace Jokenizer.Net.Tests {
 
             var v3 = Evaluator.ToFunc<string>("\"RICK\".ToLower()");
             Assert.Equal("rick", v3());
+
+            var v4 = Evaluator.ToFunc<Company, int>("c => c.Len()");
+            Assert.Equal(7, v4(new Company { Name = "Netflix" }));
+
+            Assert.Throws<Exception>(() => Evaluator.ToFunc<bool>("@0[1]()"));
+            Assert.Throws<Exception>(() => Evaluator.ToFunc<IEnumerable<int>, int>("SumBody(i => i*2)"));
         }
 
         [Fact]
@@ -119,6 +138,50 @@ namespace Jokenizer.Net.Tests {
         public void ShouldEvaluateBinaryWithCorrectPrecedence() {
             var v = Evaluator.ToFunc<int>("1 + 2 * 3");
             Assert.Equal(7, v());
+        }
+
+        [Fact]
+        public void ShouldThrowForUnknownToken() {
+            Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new UnkownToken()));
+        }
+
+        [Fact]
+        public void ShouldThrowForUnknownOps() {
+            Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new BinaryToken("!", new LiteralToken(1), new LiteralToken(2))));
+            Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new UnaryToken('/', new LiteralToken(1))));
+        }
+
+        [Fact]
+        public void MethodSignatureTests() {
+            var l1 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2");
+            var l2 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2", new Dictionary<string, object>());
+            var l3 = Evaluator.ToLambda<int, int>("(i1) => i1 + 2");
+            var l4 = Evaluator.ToLambda<int, int>("(i1) => i1 + 2", new Dictionary<string, object>());
+            var l5 = Evaluator.ToLambda<int>("() => 3");
+            var l6 = Evaluator.ToLambda<int>("() => 3", new Dictionary<string, object>());
+            var l7 = Evaluator.ToLambda("() => 3", Enumerable.Empty<Type>());
+            var l8 = Evaluator.ToLambda("() => 3", Enumerable.Empty<Type>(), new Dictionary<string, object>());
+
+            var f1 = Evaluator.ToFunc<int, int, int>("(i1, i2) => i1 + i2");
+            Assert.Equal(3, f1(1, 2));
+
+            var f2 = Evaluator.ToFunc<int, int, int>("(i1, i2) => i1 + i2", new Dictionary<string, object>());
+            Assert.Equal(3, f2(1, 2));
+
+            var f3 = Evaluator.ToFunc<int, int>("(i1) => i1 + 2");
+            Assert.Equal(3, f3(1));
+
+            var f4 = Evaluator.ToFunc<int, int>("(i1) => i1 + 2", new Dictionary<string, object>());
+            Assert.Equal(3, f4(1));
+
+            var f5 = Evaluator.ToFunc<int>("() => 3");
+            Assert.Equal(3, f5());
+
+            var f6 = Evaluator.ToFunc<int>("() => 3", new Dictionary<string, object>());
+            Assert.Equal(3, f6());
+
+            var f7 = Evaluator.ToFunc("() => 3", Enumerable.Empty<Type>());
+            var f8 = Evaluator.ToFunc("() => 3", Enumerable.Empty<Type>(), new Dictionary<string, object>());
         }
     }
 }

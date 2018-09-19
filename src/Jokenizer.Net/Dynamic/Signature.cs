@@ -22,10 +22,6 @@ namespace Jokenizer.Net.Dynamic {
             return hashCode;
         }
 
-        public override bool Equals(object obj) {
-            return obj is Signature ? Equals((Signature)obj) : false;
-        }
-
         public bool Equals(Signature other) {
             if (Properties.Length != other.Properties.Length) return false;
 

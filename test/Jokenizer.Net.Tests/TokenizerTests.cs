@@ -36,8 +36,8 @@ namespace Jokenizer.Net.Tests {
 
             Assert.Throws<Exception>(() => Tokenizer.Parse("\"blow"));
 
-            var e2 = Tokenizer.Parse<LiteralToken>("\"\\a\\b\\f\\n\\r\\t\\v\\0\\\"\\\\\"");
-            Assert.Equal("\a\b\f\n\r\t\v\0\"\\", e2.Value);
+            var e2 = Tokenizer.Parse<LiteralToken>("\"\\z\\a\\b\\f\\n\\r\\t\\v\\0\\\"\\\\\"");
+            Assert.Equal("\\z\a\b\f\n\r\t\v\0\"\\", e2.Value);
         }
 
         [Fact]
@@ -56,6 +56,12 @@ namespace Jokenizer.Net.Tests {
         public void ShouldReturnVariableToken() {
             var e1 = Tokenizer.Parse<VariableToken>("Name");
             Assert.Equal("Name", e1.Name);
+
+            var e2 = Tokenizer.Parse<VariableToken>("@0");
+            Assert.Equal("@0", e2.Name);
+
+            Assert.Throws<Exception>(() => Tokenizer.Parse<VariableToken>("42d"));
+            Assert.Throws<Exception>(() => Tokenizer.Parse<VariableToken>("@a"));
         }
 
         [Fact]
@@ -76,6 +82,9 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal(2, e.Members.Length);
             Assert.Equal("a", e.Members[0].Name);
             Assert.Equal("b", e.Members[1].Name);
+
+            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new { a = 4"));
+            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new { 4 = 4 }"));
         }
 
         [Fact]
@@ -88,8 +97,9 @@ namespace Jokenizer.Net.Tests {
 
             var ve = me.Owner as VariableToken;
             Assert.Equal("Company", ve.Name);
-
             Assert.Equal("Name", me.Member);
+
+            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("Company.4D"));
         }
 
         [Fact]
@@ -128,6 +138,9 @@ namespace Jokenizer.Net.Tests {
 
             var re = be.Right as VariableToken;
             Assert.Equal("b", re.Name);
+
+            Assert.Throws<Exception>(() => Tokenizer.Parse("(a, 4) => a < 4"));
+            Assert.Throws<Exception>(() => Tokenizer.Parse("4 => a < 4"));
         }
 
         [Fact]
