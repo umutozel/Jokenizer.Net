@@ -7,62 +7,48 @@ using System.Runtime.CompilerServices;
 namespace Jokenizer.Net {
 
     public static class ExtensionMethods {
-        private static List<Func<Type, string, int, MethodInfo>> finders = new List<Func<Type, string, int, MethodInfo>>();
-        private static List<MethodInfo> queryableExtensions;
-        private static List<MethodInfo> enumerableExtensions;
+        private static HashSet<MethodInfo> extensions = new HashSet<MethodInfo>();
 
         static ExtensionMethods() {
-            queryableExtensions = GetExtensionMethods(typeof(Queryable)).ToList();
-            enumerableExtensions = GetExtensionMethods(typeof(Enumerable)).ToList();
-
-            finders.Add(QueryableExtensionFinder);
-            finders.Add(EnumerableExtensionFinder);
+            ScanType(typeof(Queryable));
+            ScanType(typeof(Enumerable));
         }
 
-        public static IEnumerable<MethodInfo> GetExtensionMethods(Type type) {
-            return type
-                .GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-                .Where(m => m.IsDefined(typeof(ExtensionAttribute), false));
+        public static IEnumerable<MethodInfo> ProbeAllAssemblies() {
+            return ProbeAssemblies(Assembly.GetEntryAssembly().GetReferencedAssemblies().Select(Assembly.Load));
         }
 
-        public static void AddExtensionFinder(Func<Type, string, int, MethodInfo> finder) {
-            finders.Add(finder);
+        public static IEnumerable<MethodInfo> ProbeAssemblies(IEnumerable<Assembly> assemblies) => assemblies.SelectMany(ProbeAssembly);
+
+        public static IEnumerable<MethodInfo> ProbeAssembly(Assembly assembly) {
+            return ScanTypes(assembly.GetTypes().Where(t => t.IsSealed && !t.IsGenericType && !t.IsNested)).ToList();
+        }
+
+        public static IEnumerable<MethodInfo> ScanTypes(IEnumerable<Type> types) => types.SelectMany(ScanType);
+
+        public static IEnumerable<MethodInfo> ScanType(Type type) {
+            var methods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+                .Where(m => m.IsDefined(typeof(ExtensionAttribute), false))
+                .ToList();
+
+            methods.ForEach(m => extensions.Add(m));
+
+            return methods;
         }
 
         public static MethodInfo GetExtensionMethod(Type forType, string name, int parameterCount) {
-            return finders.Select(f => f(forType, name, parameterCount)).FirstOrDefault(v => v != null);
-        }
+            var args = forType.IsConstructedGenericType ? forType.GetGenericArguments() : null;
 
-        private static MethodInfo QueryableExtensionFinder(Type forType, string name, int parameterCount) {
-            return FindExtension(queryableExtensions, forType, name, parameterCount);
-        }
-
-        private static MethodInfo EnumerableExtensionFinder(Type forType, string name, int parameterCount) {
-            return FindExtension(enumerableExtensions, forType, name, parameterCount);
-        }
-
-        private static MethodInfo FindExtension(IEnumerable<MethodInfo> extensions, Type forType, string name, int parameterCount) {
-            if (!forType.IsConstructedGenericType) return null;
-
-            var args = forType.GetGenericArguments();
-            if (args.Length != 1) return null;
-
-            var extension = extensions.FirstOrDefault(m => {
-                if (m.Name != name) return false;
+            return extensions.Select(m => {
+                if (m.Name != name) return null;
 
                 if (m.IsGenericMethodDefinition) {
                     m = m.MakeGenericMethod(args);
                 }
 
                 var prms = m.GetParameters();
-                return prms.Length == parameterCount + 1 && prms[0].ParameterType.IsAssignableFrom(forType);
-            });
-
-            if (extension != null && extension.IsGenericMethodDefinition) {
-                extension = extension.MakeGenericMethod(args);
-            }
-
-            return extension;
+                return prms.Length == parameterCount + 1 && prms[0].ParameterType.IsAssignableFrom(forType) ? m : null;
+            }).FirstOrDefault(m => m != null);
         }
     }
 }

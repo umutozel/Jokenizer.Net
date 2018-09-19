@@ -101,18 +101,10 @@ namespace Jokenizer.Net.Dynamic {
                 MethodAttributes.Virtual | MethodAttributes.HideBySig,
                 typeof(bool), new Type[] { typeof(object) });
             ILGenerator gen = mb.GetILGenerator();
-#if NET_STANDARD
-            LocalBuilder other = gen.DeclareLocal(tb.AsType());
-#else
             LocalBuilder other = gen.DeclareLocal(tb);
-#endif
             Label next = gen.DefineLabel();
             gen.Emit(OpCodes.Ldarg_1);
-#if NET_STANDARD
-            gen.Emit(OpCodes.Isinst, tb.AsType());
-#else
             gen.Emit(OpCodes.Isinst, tb);
-#endif
             gen.Emit(OpCodes.Stloc, other);
             gen.Emit(OpCodes.Ldloc, other);
             gen.Emit(OpCodes.Brtrue_S, next);

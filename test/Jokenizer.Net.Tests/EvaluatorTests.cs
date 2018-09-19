@@ -12,7 +12,8 @@ namespace Jokenizer.Net.Tests {
     public class EvaluatorTests {
 
         static EvaluatorTests() {
-            ExtensionMethods.AddExtensionFinder((Type type, string name, int paramCount) => typeof(Extensions).GetMethod(name));
+            ExtensionMethods.ProbeAllAssemblies();
+            ExtensionMethods.ProbeAssembly(typeof(Extensions).Assembly);
         }
 
         [Fact]
