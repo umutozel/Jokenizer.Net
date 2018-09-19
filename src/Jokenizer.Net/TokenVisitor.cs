@@ -39,6 +39,7 @@ namespace Jokenizer.Net {
             { "/", ExpressionType.Divide },
             { "%", ExpressionType.Modulo }
         };
+        static readonly MethodInfo concatMethod = typeof(string).GetMethod("Concat", new[] { typeof(string), typeof(string) }); 
 
         readonly IDictionary<string, object> variables;
 
@@ -105,7 +106,11 @@ namespace Jokenizer.Net {
         }
 
         protected virtual Expression VisitBinary(BinaryToken token, IEnumerable<ParameterExpression> parameters) {
-            return Expression.MakeBinary(GetBinaryOp(token.Operator), Visit(token.Left, parameters), Visit(token.Right, parameters));
+            var left = Visit(token.Left, parameters);
+            
+            return left.Type == typeof(string) && token.Operator == "+"
+                ? Expression.Add(left, Visit(token.Right, parameters), concatMethod)
+                : Expression.MakeBinary(GetBinaryOp(token.Operator), left, Visit(token.Right, parameters));
         }
 
         protected virtual Expression VisitCall(CallToken token, IEnumerable<ParameterExpression> parameters) {

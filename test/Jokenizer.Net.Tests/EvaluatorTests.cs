@@ -83,6 +83,15 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
+        public void ShouldEvaluateBinary() {
+            var v1 = Evaluator.ToFunc<bool>("@0 > @1", 4, 2);
+            Assert.True(v1());
+            
+            var v2 = Evaluator.ToFunc<string>("$\"don't {@0}, 42\"", "panic");
+            Assert.Equal("don't panic, 42", v2());
+        }
+        
+        [Fact]
         public void ShouldEvaluateLambda() {
             var v = Evaluator.ToFunc<int, int, bool>("(a, b) => a < b");
             Assert.True(v(1, 2));
