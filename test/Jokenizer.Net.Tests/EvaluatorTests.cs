@@ -114,5 +114,11 @@ namespace Jokenizer.Net.Tests {
             var v = Evaluator.ToFunc<int>("@0 ? 42 : 21", true);
             Assert.Equal(42, v());
         }
+
+        [Fact]
+        public void ShouldEvaluateBinaryWithCorrectPrecedence() {
+            var v = Evaluator.ToFunc<int>("1 + 2 * 3");
+            Assert.Equal(7, v());
+        }
     }
 }
