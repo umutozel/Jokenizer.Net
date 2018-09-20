@@ -136,8 +136,26 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldEvaluateBinary() {
-            var v = Evaluator.ToFunc<bool>("@0 > @1", 4, 2);
-            Assert.True(v());
+            var v1 = Evaluator.ToFunc<bool>("@0 > @1", 4, 2);
+            Assert.True(v1());
+
+            var v2 = Evaluator.ToFunc<Company, bool>("c => c.PostalCode < 4");
+            Assert.True(v2(new Company { PostalCode = 3 }));
+
+            var id = Guid.NewGuid();
+            var v3 = Evaluator.ToFunc<Company, bool>($"c => c.Id == \"{id}\"");
+            Assert.True(v3(new Company { Id = id }));
+
+            var createDate = DateTime.Now.Date;
+            var v4 = Evaluator.ToFunc<Company, bool>($"c => c.CreateDate == \"{createDate}\"");
+            Assert.True(v4(new Company { CreateDate = createDate }));
+
+            var updateDate = DateTime.Now.Date;
+            var v5 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == \"{updateDate}\"");
+            Assert.True(v5(new Company { UpdateDate = updateDate }));
+
+            var v6 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == null");
+            Assert.True(v6(new Company()));
 
             Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new BinaryToken("!", new LiteralToken(1), new LiteralToken(2))));
         }

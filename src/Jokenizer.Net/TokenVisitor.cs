@@ -39,7 +39,7 @@ namespace Jokenizer.Net {
             { "/", ExpressionType.Divide },
             { "%", ExpressionType.Modulo }
         };
-        static readonly MethodInfo concatMethod = typeof(string).GetMethod("Concat", new[] { typeof(string), typeof(string) }); 
+        static readonly MethodInfo concatMethod = typeof(string).GetMethod("Concat", new[] { typeof(string), typeof(string) });
 
         readonly IDictionary<string, object> variables;
 
@@ -107,10 +107,66 @@ namespace Jokenizer.Net {
 
         protected virtual Expression VisitBinary(BinaryToken token, IEnumerable<ParameterExpression> parameters) {
             var left = Visit(token.Left, parameters);
+            var right = Visit(token.Right, parameters);
+
+            FixTypes(ref left, ref right);
+
+            if (left.Type == typeof(string) && token.Operator == "+")
+                return Expression.Add(left, right, concatMethod);
+
+            return Expression.MakeBinary(GetBinaryOp(token.Operator), left, right);
+        }
+
+        static void FixTypes(ref Expression left, ref Expression right) {
+            if (left.Type == right.Type) return;
+
+            var ok = 
+            TryFixNullable(left, ref right) ||
+            TryFixNullable(right, ref left) ||
+            TryFixForGuid(left, ref right) ||
+            TryFixForGuid(right, ref left) ||
+            TryFixForDateTime(left, ref right) ||
+            TryFixForDateTime(right, ref left);
+
+            if (!ok) {
+                // let CLR throw exception if types are not compatible
+                right = Expression.Convert(right, left.Type);
+            }
+        }
+
+        static bool TryFixNullable(Expression e1, ref Expression e2) {
+            if (!e2.Type.IsConstructedGenericType || e2.Type.GetGenericArguments()[0] != e1.Type)
+                return false;
             
-            return left.Type == typeof(string) && token.Operator == "+"
-                ? Expression.Add(left, Visit(token.Right, parameters), concatMethod)
-                : Expression.MakeBinary(GetBinaryOp(token.Operator), left, Visit(token.Right, parameters));
+            e2 = Expression.Convert(e2, e1.Type);
+
+            return true;
+        }
+
+        static bool TryFixForGuid(Expression e1, ref Expression e2) {
+            if ((e1.Type != typeof(Guid?) && e1.Type != typeof(Guid)) || e2.Type != typeof(string) || !(e2 is ConstantExpression ce2))
+                return false;
+
+            var guidValue = Guid.Parse(ce2.Value.ToString());
+            Guid? nullableGuidValue = guidValue;
+            e2 = e1.Type == typeof(Guid?)
+                ? Expression.Constant(nullableGuidValue, typeof(Guid?))
+                : Expression.Constant(guidValue, typeof(Guid));
+
+            return true;
+        }
+
+        static bool TryFixForDateTime(Expression e1, ref Expression e2) {
+            if ((e1.Type != typeof(DateTime?) && e1.Type != typeof(DateTime)) || e2.Type != typeof(string) || !(e2 is ConstantExpression ce2))
+                return false;
+
+            var dateValue = DateTime.Parse(ce2.Value.ToString());
+            DateTime? nullableDateValue = dateValue;
+            e2 = e1.Type == typeof(DateTime?)
+                ? Expression.Constant(nullableDateValue, typeof(DateTime?))
+                : Expression.Constant(dateValue, typeof(DateTime));
+
+            return true;
         }
 
         protected virtual Expression VisitCall(CallToken token, IEnumerable<ParameterExpression> parameters) {
