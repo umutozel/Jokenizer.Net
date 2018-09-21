@@ -8,7 +8,7 @@ namespace Jokenizer.Net.Tokens {
         public GroupToken(IEnumerable<Token> tokens = null): base(TokenType.Group) {
             Tokens = tokens == null ? new Token[0] : tokens.ToArray();
         }
-                
+
         public IEnumerable<Token> Tokens { get; }
     }
 }

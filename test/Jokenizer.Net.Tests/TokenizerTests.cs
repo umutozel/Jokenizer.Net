@@ -197,13 +197,16 @@ namespace Jokenizer.Net.Tests {
             var re = be.Right as VariableToken;
             Assert.Equal("v2", re.Name);
 
-            var ie = Tokenizer.Parse("$\"don't {w}, 42\"");
-            Assert.Equal(TokenType.Binary, ie.Type);
+            var ie1 = Tokenizer.Parse("$\"don't {w}, 42\"");
+            Assert.Equal(TokenType.Binary, ie1.Type);
 
-            var bie = ie as BinaryToken;
+            var bie = ie1 as BinaryToken;
             Assert.Equal("+", bie.Operator);
             Assert.Equal(TokenType.Binary, bie.Left.Type);
             Assert.Equal(TokenType.Literal, bie.Right.Type);
+
+            var ie2 = Tokenizer.Parse("$\"don't {w}\"");
+            Assert.Equal(TokenType.Binary, ie2.Type);
 
             Assert.Throws<Exception>(() => Tokenizer.Parse("$\"don't {w, 42\""));
         }

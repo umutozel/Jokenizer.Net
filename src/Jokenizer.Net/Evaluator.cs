@@ -11,7 +11,7 @@ namespace Jokenizer.Net {
 
         public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
                                                 params object[] parameters) {
-            return new TokenVisitor(variables, parameters).Visit(token, typeParameters);
+            return new TokenVisitor(variables, parameters).Process(token, typeParameters);
         }
 
         public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, params object[] parameters) {

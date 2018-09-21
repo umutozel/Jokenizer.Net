@@ -172,6 +172,13 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
+        public void ShouldThrowForInvalidToken() {
+            Assert.Throws<Exception>(() => Evaluator.ToLambda<string>(new AssignToken("Name", new LiteralToken("Netflix"))));
+            Assert.Throws<Exception>(() => Evaluator.ToLambda<string>(new GroupToken(new[] { new LiteralToken("Netflix") })));
+            Assert.Throws<Exception>(() => Evaluator.ToLambda<string>("a < b => b*2"));
+        }
+
+        [Fact]
         public void MethodSignatureTests() {
             var l1 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2");
             var l2 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2", new Dictionary<string, object>());
