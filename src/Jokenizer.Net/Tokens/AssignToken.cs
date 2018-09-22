@@ -1,6 +1,6 @@
 namespace Jokenizer.Net.Tokens {
 
-    public class AssignToken : Token {
+    public class AssignToken : Token, IVariableToken {
 
         public AssignToken(string name, Token right) : base(TokenType.Assign) {
             Name = name;

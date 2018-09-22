@@ -1,13 +1,13 @@
 namespace Jokenizer.Net.Tokens {
 
-    public class MemberToken : Token {
+    public class MemberToken : Token, IVariableToken {
 
-        public MemberToken(Token owner, string member) : base(TokenType.Member) {
+        public MemberToken(Token owner, string name) : base(TokenType.Member) {
             Owner = owner;
-            Member = member;
+            Name = name;
         }
 
         public Token Owner { get; }
-        public string Member { get; }
+        public string Name { get; }
     }
 }

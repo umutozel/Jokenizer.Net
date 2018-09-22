@@ -117,7 +117,7 @@ namespace Jokenizer.Net {
 
             if (token.Callee is MemberToken mt) {
                 instance = Visit(mt.Owner, parameters);
-                methodName = mt.Member;
+                methodName = mt.Name;
             } else if (token.Callee is VariableToken vt && parameters.Count() == 1) {
                 instance = parameters.First();
                 methodName = vt.Name;
@@ -156,7 +156,7 @@ namespace Jokenizer.Net {
         }
 
         protected virtual Expression VisitMember(MemberToken token, IEnumerable<ParameterExpression> parameters) {
-            return Expression.PropertyOrField(Visit(token.Owner, parameters), token.Member);
+            return Expression.PropertyOrField(Visit(token.Owner, parameters), token.Name);
         }
 
         protected virtual Expression VisitObject(ObjectToken token, IEnumerable<ParameterExpression> parameters) {
