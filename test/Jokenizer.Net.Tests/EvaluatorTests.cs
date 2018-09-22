@@ -62,6 +62,9 @@ namespace Jokenizer.Net.Tests {
 
             var v2 = Evaluator.ToFunc<string>("@0", "Rick");
             Assert.Equal("Rick", v1());
+
+            var v3 = Evaluator.ToFunc<object>("@0", null, new object[] { null });
+            Assert.Null(v3());
         }
 
         [Fact]
@@ -130,8 +133,11 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldEvaluateTernary() {
-            var v = Evaluator.ToFunc<int>("@0 ? 42 : 21", true);
-            Assert.Equal(42, v());
+            var v1 = Evaluator.ToFunc<int>("@0 ? 42 : 21", true);
+            Assert.Equal(42, v1());
+
+            var v2 = Evaluator.ToFunc<int>("@0 ? 42 : 21", false);
+            Assert.Equal(21, v2());
         }
 
         [Fact]
@@ -146,24 +152,31 @@ namespace Jokenizer.Net.Tests {
             var v3 = Evaluator.ToFunc<Company, bool>($"c => c.Id == \"{id}\"");
             Assert.True(v3(new Company { Id = id }));
 
+            var ownerId = Guid.NewGuid();
+            var v4 = Evaluator.ToFunc<Company, bool>($"c => c.OwnerId == \"{ownerId}\"");
+            Assert.True(v4(new Company { OwnerId = ownerId }));
+
             var createDate = DateTime.Now.Date;
-            var v4 = Evaluator.ToFunc<Company, bool>($"c => c.CreateDate == \"{createDate}\"");
-            Assert.True(v4(new Company { CreateDate = createDate }));
+            var v5 = Evaluator.ToFunc<Company, bool>($"c => c.CreateDate == \"{createDate}\"");
+            Assert.True(v5(new Company { CreateDate = createDate }));
 
             var updateDate = DateTime.Now.Date;
-            var v5 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == \"{updateDate}\"");
-            Assert.True(v5(new Company { UpdateDate = updateDate }));
+            var v6 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == \"{updateDate}\"");
+            Assert.True(v6(new Company { UpdateDate = updateDate }));
 
-            var v6 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == null");
-            Assert.True(v6(new Company()));
+            var v7 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == null");
+            Assert.True(v7(new Company()));
 
             Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new BinaryToken("!", new LiteralToken(1), new LiteralToken(2))));
         }
 
         [Fact]
         public void ShouldEvaluateBinaryWithCorrectPrecedence() {
-            var v = Evaluator.ToFunc<int>("1 + 2 * 3");
-            Assert.Equal(7, v());
+            var v1 = Evaluator.ToFunc<int>("1 + 2 * 3");
+            Assert.Equal(7, v1());
+
+            var v2 = Evaluator.ToFunc<int>("1 * 2 + 3");
+            Assert.Equal(5, v2());
         }
 
         [Fact]
