@@ -57,11 +57,20 @@ namespace Jokenizer.Net {
             }
         }
 
-        public virtual LambdaExpression Visit(Token token, IEnumerable<Type> typeParameters, IEnumerable<ParameterExpression> parameters = null) {
-            return VisitLambda(token, typeParameters, parameters);
+        public virtual LambdaExpression Process(Token token, IEnumerable<Type> typeParameters, IEnumerable<ParameterExpression> parameters = null) {
+            typeParameters = typeParameters ?? Enumerable.Empty<Type>();
+            parameters = parameters ?? Enumerable.Empty<ParameterExpression>();
+
+            if (token is LambdaToken lt)
+                return VisitLambda(lt, typeParameters, parameters);
+
+            var prms = typeParameters.Select(t => Expression.Parameter(t)).ToList();
+            var body = Visit(token, parameters.Concat(prms).ToList());
+
+            return Expression.Lambda(body, prms);
         }
 
-        Expression Visit(Token token, IEnumerable<ParameterExpression> parameters) {
+        public virtual Expression Visit(Token token, IEnumerable<ParameterExpression> parameters) {
             switch (token) {
                 case BinaryToken bt:
                     return VisitBinary(bt, parameters);
@@ -69,8 +78,6 @@ namespace Jokenizer.Net {
                     return VisitCall(ct, parameters);
                 case IndexerToken it:
                     return VisitIndexer(it, parameters);
-                case LambdaToken lt:
-                    throw new Exception($"Invalid lambda usage");
                 case LiteralToken lit:
                     return VisitLiteral(lit, parameters);
                 case MemberToken mt:
@@ -83,26 +90,13 @@ namespace Jokenizer.Net {
                     return VisitUnary(ut, parameters);
                 case VariableToken vt:
                     return VisitVariable(vt, parameters);
+                case AssignToken at:
+                case GroupToken gt:
+                case LambdaToken lt:
+                    throw new Exception($"Invalid {token.Type} expression usage");
                 default:
                     throw new Exception($"Unsupported token type {token.Type}");
             }
-        }
-
-        protected virtual LambdaExpression VisitLambda(Token token, IEnumerable<Type> typeParameters, IEnumerable<ParameterExpression> parameters = null) {
-            typeParameters = typeParameters ?? Enumerable.Empty<Type>();
-            parameters = parameters ?? Enumerable.Empty<ParameterExpression>();
-
-            IEnumerable<ParameterExpression> prms;
-            Expression body;
-            if (token is LambdaToken lt) {
-                prms = typeParameters.Zip(lt.Parameters, (pt, ps) => Expression.Parameter(pt, ps)).ToList();
-                body = Visit(lt.Body, parameters.Concat(prms).ToList());
-            } else {
-                prms = typeParameters.Select(t => Expression.Parameter(t)).ToList();
-                body = Visit(token, parameters.Concat(prms).ToList());
-            }
-
-            return Expression.Lambda(body, prms);
         }
 
         protected virtual Expression VisitBinary(BinaryToken token, IEnumerable<ParameterExpression> parameters) {
@@ -117,65 +111,13 @@ namespace Jokenizer.Net {
             return Expression.MakeBinary(GetBinaryOp(token.Operator), left, right);
         }
 
-        static void FixTypes(ref Expression left, ref Expression right) {
-            if (left.Type == right.Type) return;
-
-            var ok = 
-            TryFixNullable(left, ref right) ||
-            TryFixNullable(right, ref left) ||
-            TryFixForGuid(left, ref right) ||
-            TryFixForGuid(right, ref left) ||
-            TryFixForDateTime(left, ref right) ||
-            TryFixForDateTime(right, ref left);
-
-            if (!ok) {
-                // let CLR throw exception if types are not compatible
-                right = Expression.Convert(right, left.Type);
-            }
-        }
-
-        static bool TryFixNullable(Expression e1, ref Expression e2) {
-            if (!e2.Type.IsConstructedGenericType || e2.Type.GetGenericArguments()[0] != e1.Type)
-                return false;
-            
-            e2 = Expression.Convert(e2, e1.Type);
-
-            return true;
-        }
-
-        static bool TryFixForGuid(Expression e1, ref Expression e2) {
-            if ((e1.Type != typeof(Guid?) && e1.Type != typeof(Guid)) || e2.Type != typeof(string) || !(e2 is ConstantExpression ce2))
-                return false;
-
-            var guidValue = Guid.Parse(ce2.Value.ToString());
-            Guid? nullableGuidValue = guidValue;
-            e2 = e1.Type == typeof(Guid?)
-                ? Expression.Constant(nullableGuidValue, typeof(Guid?))
-                : Expression.Constant(guidValue, typeof(Guid));
-
-            return true;
-        }
-
-        static bool TryFixForDateTime(Expression e1, ref Expression e2) {
-            if ((e1.Type != typeof(DateTime?) && e1.Type != typeof(DateTime)) || e2.Type != typeof(string) || !(e2 is ConstantExpression ce2))
-                return false;
-
-            var dateValue = DateTime.Parse(ce2.Value.ToString());
-            DateTime? nullableDateValue = dateValue;
-            e2 = e1.Type == typeof(DateTime?)
-                ? Expression.Constant(nullableDateValue, typeof(DateTime?))
-                : Expression.Constant(dateValue, typeof(DateTime));
-
-            return true;
-        }
-
         protected virtual Expression VisitCall(CallToken token, IEnumerable<ParameterExpression> parameters) {
             Expression instance;
             string methodName;
 
             if (token.Callee is MemberToken mt) {
                 instance = Visit(mt.Owner, parameters);
-                methodName = mt.Member;
+                methodName = mt.Name;
             } else if (token.Callee is VariableToken vt && parameters.Count() == 1) {
                 instance = parameters.First();
                 methodName = vt.Name;
@@ -185,11 +127,11 @@ namespace Jokenizer.Net {
             var (method, isExtension) = GetMethod(instance, methodName, token.Args.Length);
 
             var args = method.GetParameters().Skip(isExtension ? 1 : 0).Zip(token.Args, (p, a) => {
-                if (a.Type != TokenType.Lambda)
+                if (!(a is LambdaToken lt))
                     return Visit(a, parameters);
 
                 var g = p.ParameterType.GetGenericArguments();
-                return VisitLambda(a, g.Take(g.Length - 1), parameters);
+                return VisitLambda(lt, g.Take(g.Length - 1), parameters);
             });
 
             return isExtension
@@ -197,20 +139,16 @@ namespace Jokenizer.Net {
                 : Expression.Call(instance, method, args);
         }
 
-        private (MethodInfo method, bool isExtension) GetMethod(Expression owner, string name, int parameterCount) {
-            var method = owner.Type.GetMethods().FirstOrDefault(m => m.Name == name && parameterCount == m.GetParameters().Count());
-            if (method != null) return (method, false);
-
-            var extension = ExtensionMethods.GetExtensionMethod(owner.Type, name, parameterCount);
-            if (extension == null)
-                throw new Exception($"Could not find instance or extension method for {name} for {owner.Type}");
-
-            return (extension, true);
-        }
-
         protected virtual Expression VisitIndexer(IndexerToken token, IEnumerable<ParameterExpression> parameters) {
             // todo: other than array?
             return Expression.ArrayIndex(Visit(token.Owner, parameters), Visit(token.Key, parameters));
+        }
+
+        protected virtual LambdaExpression VisitLambda(LambdaToken token, IEnumerable<Type> typeParameters, IEnumerable<ParameterExpression> parameters = null) {
+            var prms = typeParameters.Zip(token.Parameters, (pt, ps) => Expression.Parameter(pt, ps)).ToList();
+            var body = Visit(token.Body, parameters.Concat(prms).ToList());
+
+            return Expression.Lambda(body, prms);
         }
 
         protected virtual Expression VisitLiteral(LiteralToken token, IEnumerable<ParameterExpression> parameters) {
@@ -218,7 +156,7 @@ namespace Jokenizer.Net {
         }
 
         protected virtual Expression VisitMember(MemberToken token, IEnumerable<ParameterExpression> parameters) {
-            return Expression.PropertyOrField(Visit(token.Owner, parameters), token.Member);
+            return Expression.PropertyOrField(Visit(token.Owner, parameters), token.Name);
         }
 
         protected virtual Expression VisitObject(ObjectToken token, IEnumerable<ParameterExpression> parameters) {
@@ -256,6 +194,17 @@ namespace Jokenizer.Net {
             throw new Exception($"Unknown variable {name}");
         }
 
+        (MethodInfo method, bool isExtension) GetMethod(Expression owner, string name, int parameterCount) {
+            var method = owner.Type.GetMethods().FirstOrDefault(m => m.Name == name && parameterCount == m.GetParameters().Count());
+            if (method != null) return (method, false);
+
+            var extension = ExtensionMethods.GetExtensionMethod(owner.Type, name, parameterCount);
+            if (extension == null)
+                throw new Exception($"Could not find instance or extension method for {name} for {owner.Type}");
+
+            return (extension, true);
+        }
+
         static ExpressionType GetBinaryOp(string op) {
             if (binary.TryGetValue(op, out var et))
                 return et;
@@ -268,6 +217,58 @@ namespace Jokenizer.Net {
                 return ut;
 
             throw new Exception($"Unknown unary operator {op}");
+        }
+
+        static void FixTypes(ref Expression left, ref Expression right) {
+            if (left.Type == right.Type) return;
+
+            var ok =
+            TryFixNullable(left, ref right) ||
+            TryFixNullable(right, ref left) ||
+            TryFixForGuid(left, ref right) ||
+            TryFixForGuid(right, ref left) ||
+            TryFixForDateTime(left, ref right) ||
+            TryFixForDateTime(right, ref left);
+
+            if (!ok) {
+                // let CLR throw exception if types are not compatible
+                right = Expression.Convert(right, left.Type);
+            }
+        }
+
+        static bool TryFixNullable(Expression e1, ref Expression e2) {
+            if (!e2.Type.IsConstructedGenericType || e2.Type.GetGenericArguments()[0] != e1.Type)
+                return false;
+
+            e2 = Expression.Convert(e2, e1.Type);
+
+            return true;
+        }
+
+        static bool TryFixForGuid(Expression e1, ref Expression e2) {
+            if ((e1.Type != typeof(Guid?) && e1.Type != typeof(Guid)) || e2.Type != typeof(string) || !(e2 is ConstantExpression ce2))
+                return false;
+
+            var guidValue = Guid.Parse(ce2.Value.ToString());
+            Guid? nullableGuidValue = guidValue;
+            e2 = e1.Type == typeof(Guid?)
+                ? Expression.Constant(nullableGuidValue, typeof(Guid?))
+                : Expression.Constant(guidValue, typeof(Guid));
+
+            return true;
+        }
+
+        static bool TryFixForDateTime(Expression e1, ref Expression e2) {
+            if ((e1.Type != typeof(DateTime?) && e1.Type != typeof(DateTime)) || e2.Type != typeof(string) || !(e2 is ConstantExpression ce2))
+                return false;
+
+            var dateValue = DateTime.Parse(ce2.Value.ToString());
+            DateTime? nullableDateValue = dateValue;
+            e2 = e1.Type == typeof(DateTime?)
+                ? Expression.Constant(nullableDateValue, typeof(DateTime?))
+                : Expression.Constant(dateValue, typeof(DateTime));
+
+            return true;
         }
     }
 }
