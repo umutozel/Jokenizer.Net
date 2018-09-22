@@ -77,12 +77,12 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldEvaluateObject() {
-            var v = Evaluator.ToFunc<dynamic>("new { a = 4, b = @0 }", 2);
+            var v = Evaluator.ToFunc<dynamic>("new { a = 4, b.c }", new Dictionary<string, object> { { "b", new { c = 2 } } });
             var o = v();
             Assert.Equal(4, o.a);
-            Assert.Equal(2, o.b);
+            Assert.Equal(2, o.c);
             var s = o.ToString();
-            Assert.Equal("{a=4, b=2}", s);
+            Assert.Equal("{a=4, c=2}", s);
         }
 
         [Fact]

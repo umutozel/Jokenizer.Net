@@ -77,14 +77,15 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldReturnObjectToken() {
-            var e = Tokenizer.Parse<ObjectToken>("new { a = 4, b }");
+            var e = Tokenizer.Parse<ObjectToken>("new { a = 4, b.c }");
 
             Assert.Equal(2, e.Members.Length);
             Assert.Equal("a", e.Members[0].Name);
-            Assert.Equal("b", e.Members[1].Name);
+            Assert.Equal("c", e.Members[1].Name);
 
             Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new { a = 4"));
             Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new { 4 = 4 }"));
+            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new { a.b = 4 }"));
         }
 
         [Fact]
@@ -97,9 +98,9 @@ namespace Jokenizer.Net.Tests {
 
             var ve = me.Owner as VariableToken;
             Assert.Equal("Company", ve.Name);
-            Assert.Equal("Name", me.Member);
+            Assert.Equal("Name", me.Name);
 
-            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("Company.4D"));
+            Assert.Throws<Exception>(() => Tokenizer.Parse("Company.4D"));
         }
 
         [Fact]
