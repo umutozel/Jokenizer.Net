@@ -274,17 +274,20 @@ namespace Jokenizer.Net {
             var es = new List<AssignToken>();
             do {
                 Skip();
-                var member = GetVariableName();
-                if (string.IsNullOrEmpty(member))
+                var member = GetToken();
+                if (!(member is IVariableToken vt))
                     throw new Exception($"Invalid assignment at {idx}");
 
                 Skip();
                 if (Get("=")) {
+                    if (member.GetType() != typeof(VariableToken))
+                        throw new Exception($"Invalid assignment at {idx}");
+
                     Skip();
 
-                    es.Add(new AssignToken(member, GetToken()));
-                } else {
-                    es.Add(new AssignToken(member, new VariableToken(member)));
+                    es.Add(new AssignToken(vt.Name, GetToken()));
+                } else {                        
+                    es.Add(new AssignToken(vt.Name, member));
                 }
             } while (Get(","));
 
