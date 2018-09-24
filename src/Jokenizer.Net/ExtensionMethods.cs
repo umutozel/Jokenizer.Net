@@ -44,6 +44,8 @@ namespace Jokenizer.Net {
                 if (m.Name != name) return null;
 
                 if (m.IsGenericMethodDefinition) {
+                    if (m.GetGenericArguments().Count() != args.Length) return null;
+                    
                     m = m.MakeGenericMethod(args);
                 }
 

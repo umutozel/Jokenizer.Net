@@ -236,5 +236,18 @@ namespace Jokenizer.Net.Tests {
             var le3 = re.Right as LiteralToken;
             Assert.Equal(3, le3.Value);
         }
+        
+        [Fact]
+        public void ShoulHandleNullArgument() {
+            var call = new CallToken(null);
+            var group = new GroupToken(null);
+            var lambda = new LambdaToken(null);
+            var obj = new ObjectToken(null);
+
+            Assert.NotNull(call.Args);
+            Assert.NotNull(group.Tokens);
+            Assert.NotNull(lambda.Parameters);
+            Assert.NotNull(obj.Members);
+        }
     }
 }
