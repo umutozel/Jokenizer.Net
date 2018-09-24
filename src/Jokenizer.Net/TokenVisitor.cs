@@ -84,6 +84,8 @@ namespace Jokenizer.Net {
                     return VisitMember(mt, parameters);
                 case ObjectToken ot:
                     return VisitObject(ot, parameters);
+                case ArrayToken at:
+                    return VisitArray(at, parameters);
                 case TernaryToken tt:
                     return VisitTernary(tt, parameters);
                 case UnaryToken ut:
@@ -166,6 +168,12 @@ namespace Jokenizer.Net {
             var bindings = props.Select(p => Expression.Bind(type.GetProperty(p.Name), p.Right));
 
             return Expression.MemberInit(newExp, bindings);
+        }
+
+        protected virtual Expression VisitArray(ArrayToken token, IEnumerable<ParameterExpression> parameters) {
+            var expressions = token.Items.Select(i => Visit(i, parameters)).ToList();
+            var type = expressions.Any() ? expressions[0].Type : typeof(object);
+            return Expression.NewArrayInit(type, expressions);
         }
 
         protected virtual Expression VisitTernary(TernaryToken token, IEnumerable<ParameterExpression> parameters) {

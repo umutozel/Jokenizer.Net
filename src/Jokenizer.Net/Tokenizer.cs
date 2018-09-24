@@ -71,7 +71,8 @@ namespace Jokenizer.Net {
                 if (knowns.TryGetValue(vt.Name, out var value)) {
                     t = new LiteralToken(value);
                 } else if (vt.Name == "new") {
-                    t = GetObject();
+                    Skip();
+                    t = (Token)TryObject() ?? GetArray();
                 }
             }
 
@@ -268,8 +269,8 @@ namespace Jokenizer.Net {
             return es;
         }
 
-        ObjectToken GetObject() {
-            To("{");
+        ObjectToken TryObject() {
+            if (!Get("{")) return null;
 
             var es = new List<AssignToken>();
             do {
@@ -286,7 +287,7 @@ namespace Jokenizer.Net {
                     Skip();
 
                     es.Add(new AssignToken(vt.Name, GetToken()));
-                } else {                        
+                } else {
                     es.Add(new AssignToken(vt.Name, member));
                 }
             } while (Get(","));
@@ -296,6 +297,29 @@ namespace Jokenizer.Net {
             return new ObjectToken(es);
         }
 
+        ArrayToken GetArray() {
+            To("[");
+            To("]");
+            To("{");
+
+            var es = new List<Token>();
+            do {
+                Skip();
+                var token = GetToken();
+                if (token == null) {
+                    if (es.Count > 0)
+                        throw new Exception($"Invalid array item at {idx}");
+
+                    break;
+                }
+
+                es.Add(token);
+            } while (Get(","));
+
+            To("}");
+
+            return new ArrayToken(es);
+        }
         MemberToken TryMember(Token t) {
             if (!Get(".")) return null;
 

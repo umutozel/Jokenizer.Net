@@ -89,6 +89,28 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
+        public void ShouldReturnArrayToken() {
+            var e = Tokenizer.Parse<ArrayToken>("new[] { 4, b.c }");
+
+            LiteralToken lt;
+            Assert.Equal(2, e.Items.Length);
+            Assert.NotNull(lt = e.Items[0] as LiteralToken);
+            Assert.Equal(4, lt.Value);
+            MemberToken mt;
+            Assert.NotNull(mt = e.Items[1] as MemberToken);
+            Assert.Equal("c", mt.Name);
+            VariableToken vt;
+            Assert.NotNull(vt = mt.Owner as VariableToken);
+            Assert.Equal("b", vt.Name);
+
+            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new ["));
+            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new []"));
+            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new [] { 4, "));
+            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new [] { 4, 2"));
+            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new [] { a = 2 }"));
+        }
+
+        [Fact]
         public void ShouldReturnMemberToken() {
             var e = Tokenizer.Parse("Company.Name");
             Assert.Equal(TokenType.Member, e.Type);
@@ -243,11 +265,13 @@ namespace Jokenizer.Net.Tests {
             var group = new GroupToken(null);
             var lambda = new LambdaToken(null);
             var obj = new ObjectToken(null);
+            var array = new ArrayToken(null);
 
             Assert.NotNull(call.Args);
             Assert.NotNull(group.Tokens);
             Assert.NotNull(lambda.Parameters);
             Assert.NotNull(obj.Members);
+            Assert.NotNull(array.Items);
         }
     }
 }
