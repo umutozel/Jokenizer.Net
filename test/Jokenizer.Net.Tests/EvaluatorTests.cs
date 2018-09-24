@@ -115,8 +115,8 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldEvaluateCall() {
-            var v1 = Evaluator.ToFunc<IEnumerable<int>, int>("items => items.Sum(i => i*2)");
-            Assert.Equal(30, v1(new[] { 1, 2, 3, 4, 5 }));
+            var v1 = Evaluator.ToFunc<IEnumerable<int>, int>("items => items.Max()");
+            Assert.Equal(5, v1(new[] { 1, 2, 3, 4, 5 }));
 
             var v2 = Evaluator.ToFunc<IEnumerable<int>, int>("Sum(i => i*2)");
             Assert.Equal(30, v2(new[] { 1, 2, 3, 4, 5 }));
