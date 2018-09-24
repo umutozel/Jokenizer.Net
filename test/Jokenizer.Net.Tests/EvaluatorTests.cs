@@ -86,6 +86,17 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
+        public void ShouldEvaluateArray() {
+            var v1 = Evaluator.ToFunc<int[]>("new[] { 4, b.c }", new Dictionary<string, object> { { "b", new { c = 2 } } });
+            var a1 = v1();
+            Assert.Equal(new[] { 4, 2 }, a1);
+
+            var v2 = Evaluator.ToFunc<object[]>("new [] { }");
+            var a2 = v2();
+            Assert.Equal(new object[0], a2);
+        }
+
+        [Fact]
         public void ShouldEvaluateMember() {
             var v1 = Evaluator.ToFunc<string>("Company.Name", new Dictionary<string, object> { { "Company", new { Name = "Rick" } } });
             Assert.Equal("Rick", v1());
