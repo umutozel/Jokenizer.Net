@@ -9,6 +9,6 @@ namespace Jokenizer.Net.Tokens {
             Tokens = tokens == null ? new Token[0] : tokens.ToArray();
         }
 
-        public IEnumerable<Token> Tokens { get; }
+        public Token[] Tokens { get; }
     }
 }

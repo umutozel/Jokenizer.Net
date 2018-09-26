@@ -71,6 +71,9 @@ namespace Jokenizer.Net {
         }
 
         public virtual Expression Visit(Token token, IEnumerable<ParameterExpression> parameters) {
+            if (token is GroupToken gt && gt.Tokens.Length == 1)
+                return Visit(gt.Tokens[0], parameters);
+
             switch (token) {
                 case BinaryToken bt:
                     return VisitBinary(bt, parameters);
@@ -92,8 +95,8 @@ namespace Jokenizer.Net {
                     return VisitUnary(ut, parameters);
                 case VariableToken vt:
                     return VisitVariable(vt, parameters);
+                case GroupToken gt2:
                 case AssignToken at:
-                case GroupToken gt:
                 case LambdaToken lt:
                     throw new Exception($"Invalid {token.Type} expression usage");
                 default:

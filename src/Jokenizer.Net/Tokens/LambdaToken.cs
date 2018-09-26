@@ -11,6 +11,6 @@ namespace Jokenizer.Net.Tokens {
         }
 
         public Token Body { get; }
-        public IEnumerable<string> Parameters { get; }
+        public string[] Parameters { get; }
     }
 }

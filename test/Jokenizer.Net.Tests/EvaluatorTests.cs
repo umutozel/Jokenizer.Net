@@ -198,7 +198,7 @@ namespace Jokenizer.Net.Tests {
         [Fact]
         public void ShouldThrowForInvalidToken() {
             Assert.Throws<Exception>(() => Evaluator.ToLambda<string>(new AssignToken("Name", new LiteralToken("Netflix"))));
-            Assert.Throws<Exception>(() => Evaluator.ToLambda<string>(new GroupToken(new[] { new LiteralToken("Netflix") })));
+            Assert.Throws<Exception>(() => Evaluator.ToLambda<string>(new GroupToken(new[] { new LiteralToken("Netflix"), new LiteralToken("Google") })));
             Assert.Throws<Exception>(() => Evaluator.ToLambda<string>("a < b => b*2"));
         }
 
