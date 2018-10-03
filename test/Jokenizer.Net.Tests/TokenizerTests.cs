@@ -34,7 +34,7 @@ namespace Jokenizer.Net.Tests {
             var e1 = Tokenizer.Parse<LiteralToken>("\"4\\\"2\"");
             Assert.Equal("4\"2", e1.Value);
 
-            Assert.Throws<Exception>(() => Tokenizer.Parse("\"blow"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse("\"blow"));
 
             var e2 = Tokenizer.Parse<LiteralToken>("\"\\z\\a\\b\\f\\n\\r\\t\\v\\0\\\"\\\\\"");
             Assert.Equal("\\z\a\b\f\n\r\t\v\0\"\\", e2.Value);
@@ -60,8 +60,8 @@ namespace Jokenizer.Net.Tests {
             var e2 = Tokenizer.Parse<VariableToken>("@0");
             Assert.Equal("@0", e2.Name);
 
-            Assert.Throws<Exception>(() => Tokenizer.Parse<VariableToken>("42d"));
-            Assert.Throws<Exception>(() => Tokenizer.Parse<VariableToken>("@a"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<VariableToken>("42d"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<VariableToken>("@a"));
         }
 
         [Fact]
@@ -83,9 +83,9 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal("a", e.Members[0].Name);
             Assert.Equal("c", e.Members[1].Name);
 
-            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new { a = 4"));
-            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new { 4 = 4 }"));
-            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new { a.b = 4 }"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new { a = 4"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new { 4 = 4 }"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new { a.b = 4 }"));
         }
 
         [Fact]
@@ -103,11 +103,11 @@ namespace Jokenizer.Net.Tests {
             Assert.NotNull(vt = mt.Owner as VariableToken);
             Assert.Equal("b", vt.Name);
 
-            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new ["));
-            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new []"));
-            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new [] { 4, "));
-            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new [] { 4, 2"));
-            Assert.Throws<Exception>(() => Tokenizer.Parse<ObjectToken>("new [] { a = 2 }"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new ["));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new []"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new [] { 4, "));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new [] { 4, 2"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new [] { a = 2 }"));
         }
 
         [Fact]
@@ -122,7 +122,7 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal("Company", ve.Name);
             Assert.Equal("Name", me.Name);
 
-            Assert.Throws<Exception>(() => Tokenizer.Parse("Company.4D"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse("Company.4D"));
         }
 
         [Fact]
@@ -162,8 +162,8 @@ namespace Jokenizer.Net.Tests {
             var re = be.Right as VariableToken;
             Assert.Equal("b", re.Name);
 
-            Assert.Throws<Exception>(() => Tokenizer.Parse("(a, 4) => a < 4"));
-            Assert.Throws<Exception>(() => Tokenizer.Parse("4 => a < 4"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse("(a, 4) => a < 4"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse("4 => a < 4"));
         }
 
         [Fact]
@@ -231,7 +231,7 @@ namespace Jokenizer.Net.Tests {
             var ie2 = Tokenizer.Parse("$\"don't {w}\"");
             Assert.Equal(TokenType.Binary, ie2.Type);
 
-            Assert.Throws<Exception>(() => Tokenizer.Parse("$\"don't {w, 42\""));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse("$\"don't {w, 42\""));
         }
 
         [Fact]

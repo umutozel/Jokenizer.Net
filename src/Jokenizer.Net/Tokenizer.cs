@@ -115,7 +115,7 @@ namespace Jokenizer.Net {
 
             if (n != "") {
                 if (IsVariableStart())
-                    throw new Exception($"Unexpected character (${ch}) at index ${idx}");
+                    throw new InvalidSyntaxException($"Unexpected character (${ch}) at index ${idx}");
 
                 var val = isFloat ? float.Parse(n) : Convert.ChangeType(int.Parse(n), typeof(int));
                 return new LiteralToken(val);
@@ -200,13 +200,13 @@ namespace Jokenizer.Net {
 
                     Skip();
                     if (ch != '}')
-                        throw new Exception($"Unterminated template literal at {idx}");
+                        throw new InvalidSyntaxException($"Unterminated template literal at {idx}");
                 } else {
                     s += c;
                 }
             }
 
-            throw new Exception($"Unclosed quote after {s}");
+            throw new InvalidSyntaxException($"Unclosed quote after {s}");
         }
 
         Token TryLiteral() {
@@ -236,7 +236,7 @@ namespace Jokenizer.Net {
 
             var n = GetNumber();
             if (string.IsNullOrEmpty(n))
-                throw new Exception($"Invalid parameter at {idx}");
+                throw new InvalidSyntaxException($"Invalid parameter at {idx}");
 
             return new VariableToken("@" + n);
         }
@@ -277,12 +277,12 @@ namespace Jokenizer.Net {
                 Skip();
                 var member = GetToken();
                 if (!(member is IVariableToken vt))
-                    throw new Exception($"Invalid assignment at {idx}");
+                    throw new InvalidSyntaxException($"Invalid assignment at {idx}");
 
                 Skip();
                 if (Get("=")) {
                     if (member.GetType() != typeof(VariableToken))
-                        throw new Exception($"Invalid assignment at {idx}");
+                        throw new InvalidSyntaxException($"Invalid assignment at {idx}");
 
                     Skip();
 
@@ -308,7 +308,7 @@ namespace Jokenizer.Net {
                 var token = GetToken();
                 if (token == null) {
                     if (es.Count > 0)
-                        throw new Exception($"Invalid array item at {idx}");
+                        throw new InvalidSyntaxException($"Invalid array item at {idx}");
 
                     break;
                 }
@@ -325,7 +325,7 @@ namespace Jokenizer.Net {
 
             Skip();
             var v = GetVariableName();
-            if (string.IsNullOrEmpty(v)) throw new Exception($"Invalid member identifier at {idx}");
+            if (string.IsNullOrEmpty(v)) throw new InvalidSyntaxException($"Invalid member identifier at {idx}");
 
             return new MemberToken(t, v);
         }
@@ -351,14 +351,14 @@ namespace Jokenizer.Net {
             if (t is GroupToken gt) {
                 return gt.Tokens.Select(x => {
                     if (!(x is IVariableToken xv))
-                        throw new Exception($"Invalid parameter at {idx}");
+                        throw new InvalidSyntaxException($"Invalid parameter at {idx}");
 
                     return xv.Name;
                 });
             }
 
             if (!(t is IVariableToken vt))
-                throw new Exception($"Invalid parameter at {idx}");
+                throw new InvalidSyntaxException($"Invalid parameter at {idx}");
 
             return new[] { vt.Name };
         }
@@ -446,7 +446,7 @@ namespace Jokenizer.Net {
             Skip();
 
             if (!Eq(idx, c))
-                throw new Exception($"Expected {c} at index {idx}, found {ch}");
+                throw new InvalidSyntaxException($"Expected {c} at index {idx}, found {ch}");
 
             Move(c.Length);
         }
