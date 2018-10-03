@@ -140,6 +140,7 @@ namespace Jokenizer.Net.Tests {
 
             Assert.Throws<Exception>(() => Evaluator.ToFunc<bool>("@0[1]()"));
             Assert.Throws<Exception>(() => Evaluator.ToFunc<IEnumerable<int>, int>("SumBody(i => i*2)"));
+            Assert.Throws<InvalidOperationException>(() => Evaluator.ToFunc<string, bool>("s => s.GetType()"));
         }
 
         [Fact]
@@ -187,6 +188,15 @@ namespace Jokenizer.Net.Tests {
             Assert.Equal(7, v1());
 
             var v2 = Evaluator.ToFunc<int>("(1 * 2 + 3)");
+            Assert.Equal(5, v2());
+        }
+
+        [Fact]
+        public void ShouldEvaluateStaticAccess() {
+            var v1 = Evaluator.ToFunc<double>("Math.Round(4.2)");
+            Assert.Equal(4, v1());
+
+            var v2 = Evaluator.ToFunc<double>("Math.Ceiling(4.2)");
             Assert.Equal(5, v2());
         }
 

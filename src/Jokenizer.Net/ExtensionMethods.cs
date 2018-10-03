@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -37,21 +38,28 @@ namespace Jokenizer.Net {
             return methods;
         }
 
-        public static MethodInfo GetExtensionMethod(Type forType, string name, int parameterCount) {
-            var args = forType.IsConstructedGenericType ? forType.GetGenericArguments() : null;
+        public static MethodInfo Find(Type forType, string name, Expression[] availableArgs) {
+            var args = forType.IsConstructedGenericType ? forType.GetGenericArguments() : new Type[0];
 
-            return extensions.Select(m => {
-                if (m.Name != name) return null;
+            foreach (var extension in extensions) {
+                var m = extension;
+                if (m.Name != name) continue;
 
                 if (m.IsGenericMethodDefinition) {
-                    if (m.GetGenericArguments().Count() != args.Length) return null;
+                    if (m.GetGenericArguments().Length != args.Length) continue;
                     
                     m = m.MakeGenericMethod(args);
                 }
 
                 var prms = m.GetParameters();
-                return prms.Length == parameterCount + 1 && prms[0].ParameterType.IsAssignableFrom(forType) ? m : null;
-            }).FirstOrDefault(m => m != null);
+                if (!prms[0].ParameterType.IsAssignableFrom(forType)) continue;
+
+                if (!Helper.IsSuitable(prms.Skip(1).ToArray(), availableArgs)) continue;
+                
+                return m;
+            }
+
+            return null;
         }
     }
 }

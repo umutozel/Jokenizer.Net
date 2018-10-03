@@ -43,12 +43,12 @@ namespace Jokenizer.Net {
 
         readonly IDictionary<string, object> variables;
 
-        public TokenVisitor(IDictionary<string, object> variables, IEnumerable<object> parameters) {
+        public TokenVisitor(IDictionary<string, object> variables, IEnumerable<object> values) {
             this.variables = variables ?? new Dictionary<string, object>();
 
-            if (parameters != null) {
+            if (values != null) {
                 var i = 0;
-                parameters.ToList().ForEach(e => {
+                values.ToList().ForEach(e => {
                     var k = $"@{i++}";
                     if (!this.variables.ContainsKey(k)) {
                         this.variables.Add(k, e);
@@ -117,35 +117,22 @@ namespace Jokenizer.Net {
         }
 
         protected virtual Expression VisitCall(CallToken token, IEnumerable<ParameterExpression> parameters) {
-            Expression instance;
+            Expression owner;
             string methodName;
 
             if (token.Callee is MemberToken mt) {
-                instance = Visit(mt.Owner, parameters);
+                owner = Visit(mt.Owner, parameters);
                 methodName = mt.Name;
             } else if (token.Callee is VariableToken vt && parameters.Count() == 1) {
-                instance = parameters.First();
+                owner = parameters.First();
                 methodName = vt.Name;
             } else
                 throw new Exception("Unsupported method call");
 
-            var (method, isExtension) = GetMethod(instance, methodName, token.Args.Length);
-
-            var args = method.GetParameters().Skip(isExtension ? 1 : 0).Zip(token.Args, (p, a) => {
-                if (!(a is LambdaToken lt))
-                    return Visit(a, parameters);
-
-                var g = p.ParameterType.GetGenericArguments();
-                return VisitLambda(lt, g.Take(g.Length - 1), parameters);
-            });
-
-            return isExtension
-                ? Expression.Call(null, method, new[] { instance }.Concat(args))
-                : Expression.Call(instance, method, args);
+            return GetMethodCall(owner, methodName, token.Args, parameters);
         }
 
         protected virtual Expression VisitIndexer(IndexerToken token, IEnumerable<ParameterExpression> parameters) {
-            // todo: other than array?
             return Expression.ArrayIndex(Visit(token.Owner, parameters), Visit(token.Key, parameters));
         }
 
@@ -197,23 +184,70 @@ namespace Jokenizer.Net {
             if (prm != null)
                 return prm;
 
+            if (name == "Math")
+                return Expression.Parameter(typeof(Math));
+
             if (parameters.Count() == 1) {
                 var owner = parameters.First();
-                return Expression.PropertyOrField(owner, token.Name);
+                return Expression.PropertyOrField(owner, name);
             }
 
             throw new Exception($"Unknown variable {name}");
         }
 
-        (MethodInfo method, bool isExtension) GetMethod(Expression owner, string name, int parameterCount) {
-            var method = owner.Type.GetMethods().FirstOrDefault(m => m.Name == name && parameterCount == m.GetParameters().Count());
-            if (method != null) return (method, false);
+        MethodCallExpression GetMethodCall(Expression owner, string methodName, Token[] args, IEnumerable<ParameterExpression> parameters) {
+            if (methodName == "GetType")
+                throw new InvalidOperationException("GetType cannot be called");
+            
+            var methodArgs = new Expression[args.Length];
+            var lambdaArgs = new Dictionary<int, LambdaToken>();
+            for (var i = 0; i < args.Length; i++) {
+                var arg = args[i];
+                if (arg is LambdaToken lt) {
+                    lambdaArgs.Add(i, lt);
+                } else {
+                    methodArgs[i] = Visit(arg, parameters);
+                }
+            }
 
-            var extension = ExtensionMethods.GetExtensionMethod(owner.Type, name, parameterCount);
-            if (extension == null)
-                throw new Exception($"Could not find instance or extension method for {name} for {owner.Type}");
+            MethodInfo method;
+            ParameterInfo[] methodPrms = null;
+            var isExtension = false;
+            if (!lambdaArgs.Any()) {
+                method = owner.Type.GetMethod(methodName, methodArgs.Select(m => m.Type).ToArray());
+                if (method != null) {
+                    methodPrms = method.GetParameters();
+                    // we might need to cast to target types
+                    for (var i = 0; i < methodArgs.Length; i++) {
+                        var prm = methodPrms[i];
+                        var arg = methodArgs[i];
+                        if (arg != null && arg.Type != prm.ParameterType) {
+                            methodArgs[i] = Expression.Convert(arg, prm.ParameterType);
+                        }
+                    }
+                }
+            } else {
+                method = owner.Type.GetMethods()
+                    .FirstOrDefault(m => m.Name == methodName && Helper.IsSuitable(m.GetParameters(), methodArgs));
+            }
+            if (method == null) {
+                isExtension = true;
+                method = ExtensionMethods.Find(owner.Type, methodName, methodArgs);
+            }
 
-            return (extension, true);
+            if (method == null)
+                throw new Exception($"Could not find instance or extension method for {methodName} for {owner.Type}");
+
+            methodPrms = methodPrms ?? method.GetParameters();
+
+            foreach (var lambdaArg in lambdaArgs) {
+                var g = methodPrms[lambdaArg.Key].ParameterType.GetGenericArguments();
+                methodArgs[lambdaArg.Key] = VisitLambda(lambdaArg.Value, g, parameters);
+            }
+
+            return isExtension
+                ? Expression.Call(null, method, new[] { owner }.Concat(methodArgs))
+                : Expression.Call(method.IsStatic ? null : owner, method, methodArgs);
         }
 
         static ExpressionType GetBinaryOp(string op) {
