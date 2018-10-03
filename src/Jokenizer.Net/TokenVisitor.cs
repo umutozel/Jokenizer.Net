@@ -98,9 +98,9 @@ namespace Jokenizer.Net {
                 case GroupToken gt2:
                 case AssignToken at:
                 case LambdaToken lt:
-                    throw new Exception($"Invalid {token.Type} expression usage");
+                    throw new InvalidTokenException($"Invalid {token.Type} expression usage");
                 default:
-                    throw new Exception($"Unsupported token type {token.Type}");
+                    throw new InvalidTokenException($"Unsupported token type {token.Type}");
             }
         }
 
@@ -127,7 +127,7 @@ namespace Jokenizer.Net {
                 owner = parameters.First();
                 methodName = vt.Name;
             } else
-                throw new Exception("Unsupported method call");
+                throw new InvalidTokenException("Unsupported method call");
 
             return GetMethodCall(owner, methodName, token.Args, parameters);
         }
@@ -192,7 +192,7 @@ namespace Jokenizer.Net {
                 return Expression.PropertyOrField(owner, name);
             }
 
-            throw new Exception($"Unknown variable {name}");
+            throw new InvalidTokenException($"Unknown variable {name}");
         }
 
         MethodCallExpression GetMethodCall(Expression owner, string methodName, Token[] args, IEnumerable<ParameterExpression> parameters) {
@@ -236,7 +236,7 @@ namespace Jokenizer.Net {
             }
 
             if (method == null)
-                throw new Exception($"Could not find instance or extension method for {methodName} for {owner.Type}");
+                throw new InvalidTokenException($"Could not find instance or extension method for {methodName} for {owner.Type}");
 
             methodPrms = methodPrms ?? method.GetParameters();
 
@@ -254,14 +254,14 @@ namespace Jokenizer.Net {
             if (binary.TryGetValue(op, out var et))
                 return et;
 
-            throw new Exception($"Unknown binary operator {op}");
+            throw new InvalidTokenException($"Unknown binary operator {op}");
         }
 
         static ExpressionType GetUnaryOp(char op) {
             if (unary.TryGetValue(op, out var ut))
                 return ut;
 
-            throw new Exception($"Unknown unary operator {op}");
+            throw new InvalidTokenException($"Unknown unary operator {op}");
         }
 
         static void FixTypes(ref Expression left, ref Expression right) {

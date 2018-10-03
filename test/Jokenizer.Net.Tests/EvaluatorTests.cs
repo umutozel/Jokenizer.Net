@@ -72,7 +72,7 @@ namespace Jokenizer.Net.Tests {
             var v = Evaluator.ToFunc<bool>("!IsActive", new Dictionary<string, object> { { "IsActive", true } });
             Assert.False(v());
 
-            Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new UnaryToken('/', new LiteralToken(1))));
+            Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<bool>(new UnaryToken('/', new LiteralToken(1))));
         }
 
         [Fact]
@@ -107,7 +107,7 @@ namespace Jokenizer.Net.Tests {
             var v3 = Evaluator.ToFunc<Company, string>("Name");
             Assert.Equal("Netflix", v3(new Company { Name = "Netflix" }));
 
-            Assert.Throws<Exception>(() => Evaluator.ToFunc<Company, int, string>("Address"));
+            Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<Company, int, string>("Address"));
         }
 
         [Fact]
@@ -121,7 +121,7 @@ namespace Jokenizer.Net.Tests {
             var v = Evaluator.ToFunc<int, int, bool>("(a, b) => a < b");
             Assert.True(v(1, 2));
 
-            Assert.Throws<Exception>(() => Evaluator.ToFunc<int, int, bool>("4 < (a, b) => a < b"));
+            Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<int, int, bool>("4 < (a, b) => a < b"));
         }
 
         [Fact]
@@ -138,8 +138,8 @@ namespace Jokenizer.Net.Tests {
             var v4 = Evaluator.ToFunc<Company, int>("c => c.Len()");
             Assert.Equal(7, v4(new Company { Name = "Netflix" }));
 
-            Assert.Throws<Exception>(() => Evaluator.ToFunc<bool>("@0[1]()"));
-            Assert.Throws<Exception>(() => Evaluator.ToFunc<IEnumerable<int>, int>("SumBody(i => i*2)"));
+            Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<bool>("@0[1]()"));
+            Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<IEnumerable<int>, int>("SumBody(i => i*2)"));
             Assert.Throws<InvalidOperationException>(() => Evaluator.ToFunc<string, bool>("s => s.GetType()"));
         }
 
@@ -179,7 +179,7 @@ namespace Jokenizer.Net.Tests {
             var v7 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == null");
             Assert.True(v7(new Company()));
 
-            Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new BinaryToken("!", new LiteralToken(1), new LiteralToken(2))));
+            Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<bool>(new BinaryToken("!", new LiteralToken(1), new LiteralToken(2))));
         }
 
         [Fact]
@@ -202,14 +202,14 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldThrowForUnknownToken() {
-            Assert.Throws<Exception>(() => Evaluator.ToLambda<bool>(new UnkownToken()));
+            Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<bool>(new UnkownToken()));
         }
 
         [Fact]
         public void ShouldThrowForInvalidToken() {
-            Assert.Throws<Exception>(() => Evaluator.ToLambda<string>(new AssignToken("Name", new LiteralToken("Netflix"))));
-            Assert.Throws<Exception>(() => Evaluator.ToLambda<string>(new GroupToken(new[] { new LiteralToken("Netflix"), new LiteralToken("Google") })));
-            Assert.Throws<Exception>(() => Evaluator.ToLambda<string>("a < b => b*2"));
+            Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<string>(new AssignToken("Name", new LiteralToken("Netflix"))));
+            Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<string>(new GroupToken(new[] { new LiteralToken("Netflix"), new LiteralToken("Google") })));
+            Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<string>("a < b => b*2"));
         }
 
         [Fact]
