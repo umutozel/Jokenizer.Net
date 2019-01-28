@@ -64,7 +64,7 @@ namespace Jokenizer.Net {
             if (token is LambdaToken lt)
                 return VisitLambda(lt, typeParameters, parameters);
 
-            var prms = typeParameters.Select(t => Expression.Parameter(t)).ToList();
+            var prms = typeParameters.Select(Expression.Parameter).ToList();
             var body = Visit(token, parameters.Concat(prms).ToList());
 
             return Expression.Lambda(body, prms);
@@ -137,7 +137,7 @@ namespace Jokenizer.Net {
         }
 
         protected virtual LambdaExpression VisitLambda(LambdaToken token, IEnumerable<Type> typeParameters, IEnumerable<ParameterExpression> parameters = null) {
-            var prms = typeParameters.Zip(token.Parameters, (pt, ps) => Expression.Parameter(pt, ps)).ToList();
+            var prms = typeParameters.Zip(token.Parameters, Expression.Parameter).ToList();
             var body = Visit(token.Body, parameters.Concat(prms).ToList());
 
             return Expression.Lambda(body, prms);

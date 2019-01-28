@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 
 namespace Jokenizer.Net {
     using Tokens;
 
     public class Tokenizer {
-        static char[] unary = new[] { '-', '+', '!', '~' };
+        static char[] unary = { '-', '+', '!', '~' };
         static Dictionary<string, int> binary = new Dictionary<string, int> {
             { "&&", 0 },
             { "||", 0 },
@@ -40,7 +39,7 @@ namespace Jokenizer.Net {
         readonly string exp;
         readonly int len;
         readonly IDictionary<string, object> externals;
-        int idx = 0;
+        int idx;
         char ch;
 
         private Tokenizer(string exp) {
@@ -384,7 +383,7 @@ namespace Jokenizer.Net {
         }
 
         BinaryToken TryBinary(Token t) {
-            var op = binary.FirstOrDefault(b => Get(b.Key.ToString()));
+            var op = binary.FirstOrDefault(b => Get(b.Key));
 
             if (op.Equals(default(KeyValuePair<string, int>))) return null;
 
@@ -437,8 +436,8 @@ namespace Jokenizer.Net {
             while (IsSpace()) Move();
         }
 
-        bool Eq(int idx, string target) {
-            if (idx + target.Length > exp.Length) return false;
+        bool Eq(int index, string target) {
+            if (index + target.Length > exp.Length) return false;
             return exp.Substring(idx, target.Length) == target;
         }
 
