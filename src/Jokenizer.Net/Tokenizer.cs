@@ -58,11 +58,13 @@ namespace Jokenizer.Net {
         Token GetToken() {
             Skip();
 
-            Token t = TryLiteral()
+            var t = TryLiteral()
                 ?? TryVariable()
                 ?? TryParameter()
                 ?? TryUnary()
-                ?? (Token)TryGroup();
+                ?? TryGroup()
+                ?? TryObject()
+                ?? (Token)TryShortArray();
 
             if (t == null) return t;
 
@@ -93,15 +95,6 @@ namespace Jokenizer.Net {
             return r;
         }
 
-        string GetNumber() {
-            var n = "";
-            while (IsNumber()) {
-                n += ch;
-                Move();
-            }
-            return n;
-        }
-
         LiteralToken TryNumber() {
             var n = GetNumber();
 
@@ -121,6 +114,15 @@ namespace Jokenizer.Net {
             }
 
             return null;
+        }
+
+        string GetNumber() {
+            var n = "";
+            while (IsNumber()) {
+                n += ch;
+                Move();
+            }
+            return n;
         }
 
         Token TryString() {
@@ -212,6 +214,11 @@ namespace Jokenizer.Net {
             return TryNumber() ?? TryString();
         }
 
+        VariableToken TryVariable() {
+            var v = GetVariableName();
+            return v != "" ? new VariableToken(v) : null;
+        }
+
         string GetVariableName() {
             var v = "";
 
@@ -223,11 +230,6 @@ namespace Jokenizer.Net {
             }
 
             return v;
-        }
-
-        VariableToken TryVariable() {
-            var v = GetVariableName();
-            return v != "" ? new VariableToken(v) : null;
         }
 
         VariableToken TryParameter() {
@@ -296,29 +298,43 @@ namespace Jokenizer.Net {
             return new ObjectToken(es);
         }
 
+        ArrayToken TryShortArray() {
+            if (!Get("[")) return null;
+
+            var tokens = GetArrayTokens();
+            To("]");
+
+            return new ArrayToken(tokens);
+        }
+
         ArrayToken GetArray() {
             To("[");
             To("]");
             To("{");
+            var tokens = GetArrayTokens();
+            To("}");
 
-            var es = new List<Token>();
+            return new ArrayToken(tokens);
+        }
+
+        IEnumerable<Token> GetArrayTokens() {
+            var ts = new List<Token>();
             do {
                 Skip();
                 var token = GetToken();
                 if (token == null) {
-                    if (es.Count > 0)
+                    if (ts.Count > 0)
                         throw new InvalidSyntaxException($"Invalid array item at {idx}");
 
                     break;
                 }
 
-                es.Add(token);
+                ts.Add(token);
             } while (Get(","));
 
-            To("}");
-
-            return new ArrayToken(es);
+            return ts;
         }
+
         MemberToken TryMember(Token t) {
             if (!Get(".")) return null;
 

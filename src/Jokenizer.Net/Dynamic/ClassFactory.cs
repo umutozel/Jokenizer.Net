@@ -48,8 +48,10 @@ namespace Jokenizer.Net.Dynamic {
                 new ReflectionPermission(PermissionState.Unrestricted).Assert();
 #endif
             try {
-                TypeBuilder tb = this.module.DefineType(typeName, TypeAttributes.Class |
-                                                                  TypeAttributes.Public, typeof(DynamicClass));
+                TypeBuilder tb = this.module.DefineType(
+                    typeName, 
+                    TypeAttributes.Class | TypeAttributes.Public, typeof(DynamicClass)
+                );
                 FieldInfo[] fields = GenerateProperties(tb, properties);
                 GenerateEquals(tb, fields);
                 GenerateGetHashCode(tb, fields);

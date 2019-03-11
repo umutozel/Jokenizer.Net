@@ -89,6 +89,19 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
+        public void ShouldReturnObjectTokenForShortObjectSyntax() {
+            var e = Tokenizer.Parse<ObjectToken>("{ a = 4, b.c }");
+
+            Assert.Equal(2, e.Members.Length);
+            Assert.Equal("a", e.Members[0].Name);
+            Assert.Equal("c", e.Members[1].Name);
+
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new { a = 4"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new { 4 = 4 }"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new { a.b = 4 }"));
+        }
+
+        [Fact]
         public void ShouldReturnArrayToken() {
             var e = Tokenizer.Parse<ArrayToken>("new[] { 4, b.c }");
 
@@ -108,6 +121,26 @@ namespace Jokenizer.Net.Tests {
             Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new [] { 4, "));
             Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new [] { 4, 2"));
             Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new [] { a = 2 }"));
+        }
+
+        [Fact]
+        public void ShouldReturnArrayTokenForShortArraySyntax() {
+            var e = Tokenizer.Parse<ArrayToken>("[ 4, b.c ]");
+
+            LiteralToken lt;
+            Assert.Equal(2, e.Items.Length);
+            Assert.NotNull(lt = e.Items[0] as LiteralToken);
+            Assert.Equal(4, lt.Value);
+            MemberToken mt;
+            Assert.NotNull(mt = e.Items[1] as MemberToken);
+            Assert.Equal("c", mt.Name);
+            VariableToken vt;
+            Assert.NotNull(vt = mt.Owner as VariableToken);
+            Assert.Equal("b", vt.Name);
+
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("["));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("[4, ]"));
+            Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("[a = 2]"));
         }
 
         [Fact]
