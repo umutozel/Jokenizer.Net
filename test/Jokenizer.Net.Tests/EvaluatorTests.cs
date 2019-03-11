@@ -76,6 +76,15 @@ namespace Jokenizer.Net.Tests {
         }
 
         [Fact]
+        public void ShouldEvaluateCustomUnary() {
+            var settings = new Settings()
+                .AddUnaryOperator('^', e => Expression.Multiply(e, e));
+            
+            var v = Evaluator.ToFunc<int>("^Id", new Dictionary<string, object> { { "Id", 16 } }, settings);
+            Assert.Equal(256, v());
+        }
+
+        [Fact]
         public void ShouldEvaluateObject() {
             var v = Evaluator.ToFunc<dynamic>("new { a = 4, b.c }", new Dictionary<string, object> { { "b", new { c = 2 } } });
             var o = v();
