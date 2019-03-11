@@ -477,12 +477,12 @@ namespace Jokenizer.Net {
                 : new BinaryToken(leftOp, left, right);
         }
 
-        public static Token Parse(string exp) {
-            return new Tokenizer(exp).GetToken();
+        public static Token Parse(string exp, Settings settings = null) {
+            return new Tokenizer(exp, settings).GetToken();
         }
 
-        public static T Parse<T>(string exp) where T : Token {
-            return (T)Parse(exp);
+        public static T Parse<T>(string exp, Settings settings = null) where T : Token {
+            return (T)Parse(exp, settings);
         }
     }
 }
