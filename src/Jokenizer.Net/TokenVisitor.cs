@@ -113,7 +113,7 @@ namespace Jokenizer.Net {
             if (left.Type == typeof(string) && token.Operator == "+")
                 return Expression.Add(left, right, concatMethod);
 
-            return Expression.MakeBinary(GetBinaryOp(token.Operator), left, right);
+            return GetBinary(token.Operator, left, right);
         }
 
         protected virtual Expression VisitCall(CallToken token, IEnumerable<ParameterExpression> parameters) {
@@ -171,7 +171,7 @@ namespace Jokenizer.Net {
         }
 
         protected virtual Expression VisitUnary(UnaryToken token, IEnumerable<ParameterExpression> parameters) {
-            return Expression.MakeUnary(GetUnaryOp(token.Operator), Visit(token.Target, parameters), null);
+            return GetUnary(token.Operator, Visit(token.Target, parameters));
         }
 
         protected virtual Expression VisitVariable(VariableToken token, IEnumerable<ParameterExpression> parameters) {
@@ -250,16 +250,16 @@ namespace Jokenizer.Net {
                 : Expression.Call(method.IsStatic ? null : owner, method, methodArgs);
         }
 
-        static ExpressionType GetBinaryOp(string op) {
+        static BinaryExpression GetBinary(string op, Expression left, Expression right) {
             if (binary.TryGetValue(op, out var et))
-                return et;
+                return Expression.MakeBinary(et, left, right);
 
             throw new InvalidTokenException($"Unknown binary operator {op}");
         }
 
-        static ExpressionType GetUnaryOp(char op) {
+        static Expression GetUnary(char op, Expression exp) {
             if (unary.TryGetValue(op, out var ut))
-                return ut;
+                return Expression.MakeUnary(ut, exp, null);
 
             throw new InvalidTokenException($"Unknown unary operator {op}");
         }
