@@ -2,9 +2,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq.Expressions;
-using Jokenizer.Net.Tokens;
 
 namespace Jokenizer.Net {
+    using Tokens;
 
     public class Settings {
         private static Lazy<Settings> _default = new Lazy<Settings>();

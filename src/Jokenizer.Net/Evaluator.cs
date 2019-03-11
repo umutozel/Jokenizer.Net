@@ -10,8 +10,13 @@ namespace Jokenizer.Net {
         #region Lambda
 
         public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
+                                                Settings settings, params object[] parameters) {
+            return new TokenVisitor(variables, parameters, settings).Process(token, typeParameters);
+        }
+
+        public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
                                                 params object[] parameters) {
-            return new TokenVisitor(variables, parameters).Process(token, typeParameters);
+            return ToLambda(token, typeParameters, variables, null, parameters);
         }
 
         public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, params object[] parameters) {
@@ -46,8 +51,13 @@ namespace Jokenizer.Net {
         }
 
         public static LambdaExpression ToLambda(string token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
+                                                Settings settings, params object[] parameters) {
+            return ToLambda(Tokenizer.Parse(token, settings), typeParameters, variables, parameters);
+        }
+
+        public static LambdaExpression ToLambda(string token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
                                                 params object[] parameters) {
-            return ToLambda(Tokenizer.Parse(token), typeParameters, variables, parameters);
+            return ToLambda(token, typeParameters, variables, null, parameters);
         }
 
         public static LambdaExpression ToLambda(string token, IEnumerable<Type> typeParameters, params object[] parameters) {
@@ -86,8 +96,13 @@ namespace Jokenizer.Net {
         #region Func
 
         public static Delegate ToFunc(Token token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
+                                        Settings settings, params object[] parameters) {
+            return ToLambda(token, typeParameters, variables, settings, parameters).Compile();
+        }
+
+        public static Delegate ToFunc(Token token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
                                         params object[] parameters) {
-            return ToLambda(token, typeParameters, variables, parameters).Compile();
+            return ToFunc(token, typeParameters, variables, null, parameters);
         }
 
         public static Delegate ToFunc(Token token, IEnumerable<Type> typeParameters, params object[] parameters) {
