@@ -25,31 +25,31 @@ namespace Jokenizer.Net {
             AddKnownValue("null", null);
             AddKnownValue("true", true);
             AddKnownValue("false", false);
-            
+
             AddUnaryOperator('-', ExpressionType.Negate);
             AddUnaryOperator('+', ExpressionType.UnaryPlus);
             AddUnaryOperator('!', ExpressionType.Not);
             AddUnaryOperator('~', ExpressionType.OnesComplement);
 
-            AddBinaryOperator("&&", 0, ExpressionType.And);
-            AddBinaryOperator("||", 0, ExpressionType.OrElse);
-            AddBinaryOperator("??", 0, ExpressionType.Coalesce);
-            AddBinaryOperator("|", 1, ExpressionType.Or);
-            AddBinaryOperator("^", 1, ExpressionType.ExclusiveOr);
-            AddBinaryOperator("&", 1, ExpressionType.And);
-            AddBinaryOperator("==", 2, ExpressionType.Equal);
-            AddBinaryOperator("!=", 2, ExpressionType.NotEqual);
-            AddBinaryOperator("<=", 3, ExpressionType.LessThanOrEqual);
-            AddBinaryOperator(">=", 3, ExpressionType.GreaterThanOrEqual);
-            AddBinaryOperator("<", 3, ExpressionType.LessThan);
-            AddBinaryOperator(">", 3, ExpressionType.GreaterThan);
-            AddBinaryOperator("<<", 4, ExpressionType.LeftShift);
-            AddBinaryOperator(">>", 4, ExpressionType.RightShift);
-            AddBinaryOperator("+", 5, ExpressionType.Add);
-            AddBinaryOperator("-", 5, ExpressionType.Subtract);
-            AddBinaryOperator("*", 6, ExpressionType.Multiply);
-            AddBinaryOperator("/", 6, ExpressionType.Divide);
-            AddBinaryOperator("%", 6, ExpressionType.Modulo);
+            AddBinaryOperator("&&", ExpressionType.And, 0);
+            AddBinaryOperator("||", ExpressionType.OrElse, 0);
+            AddBinaryOperator("??", ExpressionType.Coalesce, 0);
+            AddBinaryOperator("|", ExpressionType.Or, 1);
+            AddBinaryOperator("^", ExpressionType.ExclusiveOr, 1);
+            AddBinaryOperator("&", ExpressionType.And, 1);
+            AddBinaryOperator("==", ExpressionType.Equal, 2);
+            AddBinaryOperator("!=", ExpressionType.NotEqual, 2);
+            AddBinaryOperator("<=", ExpressionType.LessThanOrEqual, 3);
+            AddBinaryOperator(">=", ExpressionType.GreaterThanOrEqual, 3);
+            AddBinaryOperator("<", ExpressionType.LessThan, 3);
+            AddBinaryOperator(">", ExpressionType.GreaterThan, 3);
+            AddBinaryOperator("<<", ExpressionType.LeftShift, 4);
+            AddBinaryOperator(">>", ExpressionType.RightShift, 4);
+            AddBinaryOperator("+", ExpressionType.Add, 5);
+            AddBinaryOperator("-", ExpressionType.Subtract, 5);
+            AddBinaryOperator("*", ExpressionType.Multiply, 6);
+            AddBinaryOperator("/", ExpressionType.Divide, 6);
+            AddBinaryOperator("%", ExpressionType.Modulo, 6);
         }
 
         public Settings AddKnownValue(string identifier, object value) {
@@ -58,9 +58,9 @@ namespace Jokenizer.Net {
         }
 
         public bool ContainsKnown(string identifier) => _knowns.ContainsKey(identifier);
-        
+
         public bool TryGetKnownValue(string identifier, out object value) => _knowns.TryGetValue(identifier, out value);
-        
+
         public Settings AddUnaryOperator(char op, ExpressionType type)
             => AddUnaryOperator(op, DefaultUnaryExpressionConverter(type));
 
@@ -73,11 +73,11 @@ namespace Jokenizer.Net {
 
         public bool TryGetUnaryConverter(char op, out UnaryExpressionConverter converter) => _unary.TryGetValue(op, out converter);
 
-        public Settings AddBinaryOperator(string op, byte precedence, ExpressionType type) {
-            return AddBinaryOperator(op, precedence, DefaultBinaryExpressionConverter(type));
+        public Settings AddBinaryOperator(string op, ExpressionType type, byte precedence = 7) {
+            return AddBinaryOperator(op, DefaultBinaryExpressionConverter(type), precedence);
         }
 
-        public Settings AddBinaryOperator(string op, byte precedence, BinaryExpressionConverter converter) {
+        public Settings AddBinaryOperator(string op, BinaryExpressionConverter converter, byte precedence = 7) {
             var info = new BinaryOperatorInfo(precedence, converter);
             _binary.AddOrUpdate(op, o => info, (o, i) => info);
             return this;
@@ -92,7 +92,64 @@ namespace Jokenizer.Net {
         }
 
         private static BinaryExpressionConverter DefaultBinaryExpressionConverter(ExpressionType type) {
-            return (Expression left, Expression right) => Expression.MakeBinary(type, left, right);
+            return (Expression left, Expression right) => {
+                FixTypes(ref left, ref right);
+                return Expression.MakeBinary(type, left, right);
+            };
+        }
+
+        static void FixTypes(ref Expression left, ref Expression right) {
+            if (left.Type == right.Type) return;
+
+            var ok =
+            TryFixNullable(left, ref right) ||
+            TryFixNullable(right, ref left) ||
+            TryFixForGuid(left, ref right) ||
+            TryFixForGuid(right, ref left) ||
+            TryFixForDateTime(left, ref right) ||
+            TryFixForDateTime(right, ref left);
+
+            if (!ok) {
+                // let CLR throw exception if types are not compatible
+                right = Expression.Convert(right, left.Type);
+            }
+        }
+
+        static bool TryFixNullable(Expression e1, ref Expression e2) {
+            if (!e2.Type.IsConstructedGenericType
+                || e2.Type.GetGenericTypeDefinition() != typeof(Nullable<>)
+                || e2.Type.GetGenericArguments()[0] != e2.Type)
+                return false;
+
+            e2 = Expression.Convert(e2, e1.Type);
+
+            return true;
+        }
+
+        static bool TryFixForGuid(Expression e1, ref Expression e2) {
+            if ((e1.Type != typeof(Guid?) && e1.Type != typeof(Guid)) || e2.Type != typeof(string) || !(e2 is ConstantExpression ce2))
+                return false;
+
+            var guidValue = Guid.Parse(ce2.Value.ToString());
+            Guid? nullableGuidValue = guidValue;
+            e2 = e1.Type == typeof(Guid?)
+                ? Expression.Constant(nullableGuidValue, typeof(Guid?))
+                : Expression.Constant(guidValue, typeof(Guid));
+
+            return true;
+        }
+
+        static bool TryFixForDateTime(Expression e1, ref Expression e2) {
+            if ((e1.Type != typeof(DateTime?) && e1.Type != typeof(DateTime)) || e2.Type != typeof(string) || !(e2 is ConstantExpression ce2))
+                return false;
+
+            var dateValue = DateTime.Parse(ce2.Value.ToString());
+            DateTime? nullableDateValue = dateValue;
+            e2 = e1.Type == typeof(DateTime?)
+                ? Expression.Constant(nullableDateValue, typeof(DateTime?))
+                : Expression.Constant(dateValue, typeof(DateTime));
+
+            return true;
         }
     }
 

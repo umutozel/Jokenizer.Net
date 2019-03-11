@@ -19,40 +19,71 @@ namespace Jokenizer.Net {
             return ToLambda(token, typeParameters, variables, null, parameters);
         }
 
+        public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, Settings settings, params object[] parameters) {
+            return ToLambda(token, typeParameters, null, settings, parameters);
+        }
+
         public static LambdaExpression ToLambda(Token token, IEnumerable<Type> typeParameters, params object[] parameters) {
-            return ToLambda(token, typeParameters, null, parameters);
+            return ToLambda(token, typeParameters, (Settings)null, parameters);
+        }
+
+        public static Expression<Func<TResult>> ToLambda<TResult>(Token token, IDictionary<string, object> variables,
+                                                                    Settings settings, params object[] parameters) {
+            return (Expression<Func<TResult>>)ToLambda(token, null, variables, settings, parameters);
         }
 
         public static Expression<Func<TResult>> ToLambda<TResult>(Token token, IDictionary<string, object> variables,
                                                                     params object[] parameters) {
-            return (Expression<Func<TResult>>)ToLambda(token, null, variables, parameters);
+            return ToLambda<TResult>(token, variables, null, parameters);
+        }
+
+        public static Expression<Func<TResult>> ToLambda<TResult>(Token token, Settings settings, params object[] parameters) {
+            return ToLambda<TResult>(token, null, settings, parameters);
         }
 
         public static Expression<Func<TResult>> ToLambda<TResult>(Token token, params object[] parameters) {
-            return ToLambda<TResult>(token, null, parameters);
+            return ToLambda<TResult>(token, (Settings)null, parameters);
+        }
+
+        public static Expression<Func<T, TResult>> ToLambda<T, TResult>(Token token, IDictionary<string, object> variables,
+                                                                        Settings settings, params object[] parameters) {
+            return (Expression<Func<T, TResult>>)ToLambda(token, new[] { typeof(T) }, variables, settings, parameters);
         }
 
         public static Expression<Func<T, TResult>> ToLambda<T, TResult>(Token token, IDictionary<string, object> variables,
                                                                         params object[] parameters) {
-            return (Expression<Func<T, TResult>>)ToLambda(token, new[] { typeof(T) }, variables, parameters);
+            return ToLambda<T, TResult>(token, variables, null, parameters);
+        }
+
+        public static Expression<Func<T, TResult>> ToLambda<T, TResult>(Token token, Settings settings, params object[] parameters) {
+            return ToLambda<T, TResult>(token, null, settings, parameters);
         }
 
         public static Expression<Func<T, TResult>> ToLambda<T, TResult>(Token token, params object[] parameters) {
-            return ToLambda<T, TResult>(token, null, parameters);
+            return ToLambda<T, TResult>(token, (Settings)null, parameters);
+        }
+
+        public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(Token token, IDictionary<string, object> variables,
+                                                                                    Settings settings, params object[] parameters) {
+            return (Expression<Func<T1, T2, TResult>>)ToLambda(token, new[] { typeof(T1), typeof(T2) }, variables, settings, parameters);
         }
 
         public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(Token token, IDictionary<string, object> variables,
                                                                                     params object[] parameters) {
-            return (Expression<Func<T1, T2, TResult>>)ToLambda(token, new[] { typeof(T1), typeof(T2) }, variables, parameters);
+            return ToLambda<T1, T2, TResult>(token, variables, null, parameters);
+        }
+
+        public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(Token token, Settings settings, params object[] parameters) {
+            return ToLambda<T1, T2, TResult>(token, null, settings, parameters);
         }
 
         public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(Token token, params object[] parameters) {
-            return ToLambda<T1, T2, TResult>(token, null, parameters);
+            return ToLambda<T1, T2, TResult>(token, (Settings)null, parameters);
         }
 
         public static LambdaExpression ToLambda(string token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
                                                 Settings settings, params object[] parameters) {
-            return ToLambda(Tokenizer.Parse(token, settings), typeParameters, variables, parameters);
+            return ToLambda(Tokenizer.Parse(token, settings), typeParameters, variables, settings, parameters);
         }
 
         public static LambdaExpression ToLambda(string token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
@@ -60,35 +91,66 @@ namespace Jokenizer.Net {
             return ToLambda(token, typeParameters, variables, null, parameters);
         }
 
+        public static LambdaExpression ToLambda(string token, IEnumerable<Type> typeParameters, Settings settings, params object[] parameters) {
+            return ToLambda(token, typeParameters, null, settings, parameters);
+        }
+
         public static LambdaExpression ToLambda(string token, IEnumerable<Type> typeParameters, params object[] parameters) {
-            return ToLambda(Tokenizer.Parse(token), typeParameters, parameters);
+            return ToLambda(token, typeParameters, (Settings)null, parameters);
+        }
+
+        public static Expression<Func<TResult>> ToLambda<TResult>(string token, IDictionary<string, object> variables,
+                                                                    Settings settings, params object[] parameters) {
+            return ToLambda<TResult>(Tokenizer.Parse(token, settings), variables, settings, parameters);
         }
 
         public static Expression<Func<TResult>> ToLambda<TResult>(string token, IDictionary<string, object> variables,
                                                                     params object[] parameters) {
-            return ToLambda<TResult>(Tokenizer.Parse(token), variables, parameters);
+            return ToLambda<TResult>(token, variables, null, parameters);
+        }
+
+        public static Expression<Func<TResult>> ToLambda<TResult>(string token, Settings settings, params object[] parameters) {
+            return ToLambda<TResult>(token, null, settings, parameters);
         }
 
         public static Expression<Func<TResult>> ToLambda<TResult>(string token, params object[] parameters) {
-            return ToLambda<TResult>(Tokenizer.Parse(token), parameters);
+            return ToLambda<TResult>(token, (Settings)null, parameters);
+        }
+
+        public static Expression<Func<T, TResult>> ToLambda<T, TResult>(string token, IDictionary<string, object> variables,
+                                                                        Settings settings, params object[] parameters) {
+            return ToLambda<T, TResult>(Tokenizer.Parse(token, settings), variables, settings, parameters);
         }
 
         public static Expression<Func<T, TResult>> ToLambda<T, TResult>(string token, IDictionary<string, object> variables,
                                                                         params object[] parameters) {
-            return ToLambda<T, TResult>(Tokenizer.Parse(token), variables, parameters);
+            return ToLambda<T, TResult>(token, variables, null, parameters);
+        }
+
+        public static Expression<Func<T, TResult>> ToLambda<T, TResult>(string token, Settings settings, params object[] parameters) {
+            return ToLambda<T, TResult>(token, null, settings, parameters);
         }
 
         public static Expression<Func<T, TResult>> ToLambda<T, TResult>(string token, params object[] parameters) {
-            return ToLambda<T, TResult>(Tokenizer.Parse(token), parameters);
+            return ToLambda<T, TResult>(token, (Settings)null, parameters);
+        }
+
+        public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(string token, IDictionary<string, object> variables,
+                                                                                    Settings settings, params object[] parameters) {
+            return ToLambda<T1, T2, TResult>(Tokenizer.Parse(token, settings), variables, settings, parameters);
         }
 
         public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(string token, IDictionary<string, object> variables,
                                                                                     params object[] parameters) {
-            return ToLambda<T1, T2, TResult>(Tokenizer.Parse(token), variables, parameters);
+            return ToLambda<T1, T2, TResult>(token, variables, null, parameters);
+        }
+
+        public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(string token, Settings settings, params object[] parameters) {
+            return ToLambda<T1, T2, TResult>(token, null, settings, parameters);
         }
 
         public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(string token, params object[] parameters) {
-            return ToLambda<T1, T2, TResult>(Tokenizer.Parse(token), parameters);
+            return ToLambda<T1, T2, TResult>(token, (Settings)null, parameters);
         }
 
         #endregion
@@ -105,71 +167,138 @@ namespace Jokenizer.Net {
             return ToFunc(token, typeParameters, variables, null, parameters);
         }
 
+        public static Delegate ToFunc(Token token, IEnumerable<Type> typeParameters, Settings settings, params object[] parameters) {
+            return ToFunc(token, typeParameters, null, settings, parameters);
+        }
+
         public static Delegate ToFunc(Token token, IEnumerable<Type> typeParameters, params object[] parameters) {
-            return ToFunc(token, typeParameters, null, parameters);
+            return ToFunc(token, typeParameters, (Settings)null, parameters);
+        }
+
+        public static Func<TResult> ToFunc<TResult>(Token token, IDictionary<string, object> variables,
+                                                    Settings settings, params object[] parameters) {
+            return (Func<TResult>)ToFunc(token, null, variables, settings, parameters);
         }
 
         public static Func<TResult> ToFunc<TResult>(Token token, IDictionary<string, object> variables,
                                                     params object[] parameters) {
-            return (Func<TResult>)ToFunc(token, null, variables, parameters);
+            return ToFunc<TResult>(token, variables, null, parameters);
+        }
+
+        public static Func<TResult> ToFunc<TResult>(Token token, Settings settings, params object[] parameters) {
+            return ToFunc<TResult>(token, null, settings, parameters);
         }
 
         public static Func<TResult> ToFunc<TResult>(Token token, params object[] parameters) {
-            return ToFunc<TResult>(token, null, parameters);
+            return ToFunc<TResult>(token, (Settings)null, parameters);
+        }
+
+        public static Func<T, TResult> ToFunc<T, TResult>(Token token, IDictionary<string, object> variables,
+                                                            Settings settings, params object[] parameters) {
+            return (Func<T, TResult>)ToFunc(token, new[] { typeof(T) }, variables, settings, parameters);
         }
 
         public static Func<T, TResult> ToFunc<T, TResult>(Token token, IDictionary<string, object> variables,
                                                             params object[] parameters) {
-            return (Func<T, TResult>)ToFunc(token, new[] { typeof(T) }, variables, parameters);
+            return ToFunc<T, TResult>(token, variables, null, parameters);
+        }
+
+        public static Func<T, TResult> ToFunc<T, TResult>(Token token, Settings settings, params object[] parameters) {
+            return ToFunc<T, TResult>(token, null, settings, parameters);
         }
 
         public static Func<T, TResult> ToFunc<T, TResult>(Token token, params object[] parameters) {
-            return ToFunc<T, TResult>(token, null, parameters);
+            return ToFunc<T, TResult>(token, (Settings)null, parameters);
+        }
+
+        public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(Token token, IDictionary<string, object> variables,
+                                                                    Settings settings, params object[] parameters) {
+            return (Func<T1, T2, TResult>)ToFunc(token, new[] { typeof(T1), typeof(T2) }, variables, settings, parameters);
         }
 
         public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(Token token, IDictionary<string, object> variables,
                                                                     params object[] parameters) {
-            return (Func<T1, T2, TResult>)ToFunc(token, new[] { typeof(T1), typeof(T2) }, variables, parameters);
+            return ToFunc<T1, T2, TResult>(token, variables, null, parameters);
+        }
+
+        public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(Token token, Settings settings, params object[] parameters) {
+            return ToFunc<T1, T2, TResult>(token, null, settings, parameters);
         }
 
         public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(Token token, params object[] parameters) {
-            return ToFunc<T1, T2, TResult>(token, null, parameters);
+            return ToFunc<T1, T2, TResult>(token, (Settings)null, parameters);
+        }
+
+        public static Delegate ToFunc(string token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
+                                        Settings settings, params object[] parameters) {
+            return ToFunc(Tokenizer.Parse(token, settings), typeParameters, variables, settings, parameters);
         }
 
         public static Delegate ToFunc(string token, IEnumerable<Type> typeParameters, IDictionary<string, object> variables,
                                         params object[] parameters) {
-            return ToFunc(Tokenizer.Parse(token), typeParameters, variables, parameters);
+            return ToFunc(token, typeParameters, variables, null, parameters);
+        }
+
+        public static Delegate ToFunc(string token, IEnumerable<Type> typeParameters, Settings settings, params object[] parameters) {
+            return ToFunc(token, typeParameters, null, settings, parameters);
         }
 
         public static Delegate ToFunc(string token, IEnumerable<Type> typeParameters, params object[] parameters) {
-            return ToFunc(Tokenizer.Parse(token), typeParameters, parameters);
+            return ToFunc(token, typeParameters, (Settings)null, parameters);
+        }
+
+        public static Func<TResult> ToFunc<TResult>(string token, IDictionary<string, object> variables,
+                                                    Settings settings, params object[] parameters) {
+            return ToFunc<TResult>(Tokenizer.Parse(token, settings), variables, settings, parameters);
         }
 
         public static Func<TResult> ToFunc<TResult>(string token, IDictionary<string, object> variables,
                                                     params object[] parameters) {
-            return ToFunc<TResult>(Tokenizer.Parse(token), variables, parameters);
+            return ToFunc<TResult>(token, variables, null, parameters);
+        }
+
+        public static Func<TResult> ToFunc<TResult>(string token, Settings settings, params object[] parameters) {
+            return ToFunc<TResult>(token, null, settings, parameters);
         }
 
         public static Func<TResult> ToFunc<TResult>(string token, params object[] parameters) {
-            return ToFunc<TResult>(Tokenizer.Parse(token), parameters);
+            return ToFunc<TResult>(token, (Settings)null, parameters);
+        }
+
+        public static Func<T, TResult> ToFunc<T, TResult>(string token, IDictionary<string, object> variables,
+                                                            Settings settings, params object[] parameters) {
+            return ToFunc<T, TResult>(Tokenizer.Parse(token, settings), variables, settings, parameters);
         }
 
         public static Func<T, TResult> ToFunc<T, TResult>(string token, IDictionary<string, object> variables,
                                                             params object[] parameters) {
-            return ToFunc<T, TResult>(Tokenizer.Parse(token), variables, parameters);
+            return ToFunc<T, TResult>(token, variables, null, parameters);
+        }
+
+        public static Func<T, TResult> ToFunc<T, TResult>(string token, Settings settings, params object[] parameters) {
+            return ToFunc<T, TResult>(token, null, settings, parameters);
         }
 
         public static Func<T, TResult> ToFunc<T, TResult>(string token, params object[] parameters) {
-            return ToFunc<T, TResult>(Tokenizer.Parse(token), parameters);
+            return ToFunc<T, TResult>(token, (Settings)null, parameters);
+        }
+
+        public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(string token, IDictionary<string, object> variables,
+                                                                    Settings settings, params object[] parameters) {
+            return ToFunc<T1, T2, TResult>(Tokenizer.Parse(token, settings), variables, settings, parameters);
         }
 
         public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(string token, IDictionary<string, object> variables,
                                                                     params object[] parameters) {
-            return ToFunc<T1, T2, TResult>(Tokenizer.Parse(token), variables, parameters);
+            return ToFunc<T1, T2, TResult>(token, variables, null, parameters);
+        }
+
+        public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(string token, Settings settings, params object[] parameters) {
+            return ToFunc<T1, T2, TResult>(token, null, settings, parameters);
         }
 
         public static Func<T1, T2, TResult> ToFunc<T1, T2, TResult>(string token, params object[] parameters) {
-            return ToFunc<T1, T2, TResult>(Tokenizer.Parse(token), parameters);
+            return ToFunc<T1, T2, TResult>(token, (Settings)null, parameters);
         }
 
         #endregion

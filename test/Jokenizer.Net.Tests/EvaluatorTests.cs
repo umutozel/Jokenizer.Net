@@ -63,7 +63,7 @@ namespace Jokenizer.Net.Tests {
             var v2 = Evaluator.ToFunc<string>("@0", "Rick");
             Assert.Equal("Rick", v1());
 
-            var v3 = Evaluator.ToFunc<object>("@0", null, new object[] { null });
+            var v3 = Evaluator.ToFunc<object>("@0", new object[] { null });
             Assert.Null(v3());
         }
 
@@ -77,7 +77,7 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldEvaluateObject() {
-            var v = Evaluator.ToFunc<dynamic>("new { a = 4, b.c }", new Dictionary<string, object> { { "b", new { c = 2 } } });
+            var v = Evaluator.ToFunc<dynamic>("new { a = 4, b.c }", new Dictionary<string, object> { { "b", new { c = 2 } } });
             var o = v();
             Assert.Equal(4, o.a);
             Assert.Equal(2, o.c);
@@ -87,7 +87,7 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldEvaluateArray() {
-            var v1 = Evaluator.ToFunc<int[]>("new[] { 4, b.c }", new Dictionary<string, object> { { "b", new { c = 2 } } });
+            var v1 = Evaluator.ToFunc<int[]>("new[] { 4, b.c }", new Dictionary<string, object> { { "b", new { c = 2 } } });
             var a1 = v1();
             Assert.Equal(new[] { 4, 2 }, a1);
 
@@ -112,7 +112,7 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldEvaluateIndexer() {
-            var v = Evaluator.ToFunc<string>("@0[0]", null, new string[] { "Rick" }, null);
+            var v = Evaluator.ToFunc<string>("@0[0]", new string[] { "Rick" }, null);
             Assert.Equal("Rick", v());
         }
 
@@ -180,6 +180,28 @@ namespace Jokenizer.Net.Tests {
             Assert.True(v7(new Company()));
 
             Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<bool>(new BinaryToken("!", new LiteralToken(1), new LiteralToken(2))));
+        }
+
+        [Fact]
+        public void ShouldEvaluateCustomBinary() {
+            var containsMethod = typeof(Enumerable).GetMethods()
+                .First(m => m.Name == "Contains" && m.GetParameters().Length == 2)
+                .MakeGenericMethod(typeof(Company));
+
+            var settings = new Settings()
+                .AddBinaryOperator(
+                    "in",
+                    (l, r) => Expression.Call(containsMethod, new[] { r, l })
+                );
+
+            var company1 = new Company();
+            var company2 = new Company();
+            var companies = new[] { company1 };
+
+            var f = Evaluator.ToFunc<Company, IEnumerable<Company>, bool>("(c, cs) => c in cs", settings);
+
+            Assert.True(f(company1, companies));
+            Assert.False(f(company2, companies));
         }
 
         [Fact]
