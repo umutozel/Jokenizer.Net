@@ -36,18 +36,20 @@ namespace Jokenizer.Net {
         };
         static string separator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
 
+        readonly Settings settings;
         readonly string exp;
         readonly int len;
         readonly IDictionary<string, object> externals;
         int idx;
         char ch;
 
-        private Tokenizer(string exp) {
+        public Tokenizer(string exp, Settings settings = null) {
             if (exp == null)
                 throw new ArgumentNullException(nameof(exp));
             if (string.IsNullOrWhiteSpace(exp))
                 throw new ArgumentException(nameof(exp));
 
+            this.settings = settings ?? Settings.Default;
             this.exp = exp;
             this.externals = externals ?? new Dictionary<string, object>();
 

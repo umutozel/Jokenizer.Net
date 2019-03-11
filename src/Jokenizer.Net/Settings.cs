@@ -1,21 +1,29 @@
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 using Jokenizer.Net.Tokens;
 
 namespace Jokenizer.Net {
 
-    public static class Operators {
-        private static ConcurrentDictionary<char, UnaryExpressionConverter> _unary;
-        private static ConcurrentDictionary<string, BinaryOperatorInfo> _binary;
+    public class Settings {
+        private static Lazy<Settings> _default = new Lazy<Settings>();
+        public static Settings Default => _default.Value;
 
-        static Operators() {
-            _unary = new ConcurrentDictionary<char, UnaryExpressionConverter>();
+        private ConcurrentDictionary<char, UnaryExpressionConverter> _unary
+            = new ConcurrentDictionary<char, UnaryExpressionConverter>();
+        public IEnumerable<char> UnaryExpressions => _unary.Keys;
+
+        private ConcurrentDictionary<string, BinaryOperatorInfo> _binary
+            = new ConcurrentDictionary<string, BinaryOperatorInfo>();
+        public IEnumerable<string> BinaryExpressions => _binary.Keys;
+
+        public Settings() {
             AddUnaryOperator('-', ExpressionType.Negate);
             AddUnaryOperator('+', ExpressionType.UnaryPlus);
             AddUnaryOperator('!', ExpressionType.Not);
             AddUnaryOperator('~', ExpressionType.OnesComplement);
-            
-            _binary = new ConcurrentDictionary<string, BinaryOperatorInfo>();
+
             AddBinaryOperator("&&", 0, ExpressionType.And);
             AddBinaryOperator("||", 0, ExpressionType.OrElse);
             AddBinaryOperator("??", 0, ExpressionType.Coalesce);
@@ -37,30 +45,32 @@ namespace Jokenizer.Net {
             AddBinaryOperator("%", 6, ExpressionType.Modulo);
         }
 
-        public static void AddUnaryOperator(char op, ExpressionType type) {
-            AddUnaryOperator(op, DefaultUnaryExpressionConverter(type));
+        public Settings AddUnaryOperator(char op, ExpressionType type) {
+            return AddUnaryOperator(op, DefaultUnaryExpressionConverter(type));
         }
 
-        public static void AddUnaryOperator(char op, UnaryExpressionConverter converter) {
+        public Settings AddUnaryOperator(char op, UnaryExpressionConverter converter) {
             _unary.AddOrUpdate(op, converter, (o, c) => converter);
+            return this;
         }
 
-        public static bool ContainsUnary(char op) => _unary.ContainsKey(op);
+        public bool ContainsUnary(char op) => _unary.ContainsKey(op);
 
-        public static bool TryGetUnaryConverter(char op, out UnaryExpressionConverter converter) => _unary.TryGetValue(op, out converter);
+        public bool TryGetUnaryConverter(char op, out UnaryExpressionConverter converter) => _unary.TryGetValue(op, out converter);
 
-        public static void AddBinaryOperator(string op, byte precedence, ExpressionType type) {
-            AddBinaryOperator(op, precedence, DefaultBinaryExpressionConverter(type));
+        public Settings AddBinaryOperator(string op, byte precedence, ExpressionType type) {
+            return AddBinaryOperator(op, precedence, DefaultBinaryExpressionConverter(type));
         }
 
-        public static void AddBinaryOperator(string op, byte precedence, BinaryExpressionConverter converter) {
+        public Settings AddBinaryOperator(string op, byte precedence, BinaryExpressionConverter converter) {
             var info = new BinaryOperatorInfo(precedence, converter);
             _binary.AddOrUpdate(op, o => info, (o, i) => info);
+            return this;
         }
 
-        public static bool ContainsBinary(string op) => _binary.ContainsKey(op);
-        
-        public static bool TryGetBinaryInfo(string op, out BinaryOperatorInfo info) => _binary.TryGetValue(op, out info);
+        public bool ContainsBinary(string op) => _binary.ContainsKey(op);
+
+        public bool TryGetBinaryInfo(string op, out BinaryOperatorInfo info) => _binary.TryGetValue(op, out info);
 
         private static UnaryExpressionConverter DefaultUnaryExpressionConverter(ExpressionType type) {
             return (Expression exp) => Expression.MakeUnary(type, exp, null);
@@ -81,7 +91,7 @@ namespace Jokenizer.Net {
             Precedence = precedence;
             ExpressionConverter = expressionConverter;
         }
-        
+
         public byte Precedence { get; }
         public BinaryExpressionConverter ExpressionConverter { get; }
     }
