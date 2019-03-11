@@ -45,10 +45,7 @@ namespace Jokenizer.Net {
             _unary.AddOrUpdate(op, converter, (o, c) => converter);
         }
 
-        public static UnaryExpressionConverter GetUnaryConverter(char op) {
-            _unary.TryGetValue(op, out var converter);
-            return converter;
-        }
+        public static bool TryGetUnaryConverter(char op, out UnaryExpressionConverter converter) => _unary.TryGetValue(op, out converter);
 
         public static void AddBinaryOperator(string op, byte precedence, ExpressionType type) {
             AddBinaryOperator(op, precedence, DefaultBinaryExpressionConverter(type));
@@ -59,10 +56,7 @@ namespace Jokenizer.Net {
             _binary.AddOrUpdate(op, o => info, (o, i) => info);
         }
 
-        public static BinaryOperatorInfo GetBinaryInfo(string op) {
-            _binary.TryGetValue(op, out var info);
-            return info;
-        }
+        public static bool TryGetBinaryInfo(string op, out BinaryOperatorInfo info) => _binary.TryGetValue(op, out info);
 
         private static UnaryExpressionConverter DefaultUnaryExpressionConverter(ExpressionType type) {
             return (Expression exp) => Expression.MakeUnary(type, exp, null);
