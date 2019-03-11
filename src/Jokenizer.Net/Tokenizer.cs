@@ -7,28 +7,6 @@ namespace Jokenizer.Net {
     using Tokens;
 
     public class Tokenizer {
-        static char[] unary = { '-', '+', '!', '~' };
-        static Dictionary<string, int> binary = new Dictionary<string, int> {
-            { "&&", 0 },
-            { "||", 0 },
-            { "??", 0 },
-            { "|", 1 },
-            { "^", 1 },
-            { "&", 1 },
-            { "==", 2 },
-            { "!=", 2 },
-            { "<=", 3 },
-            { ">=", 3 },
-            { "<", 3 },
-            { ">", 3 },
-            { "<<", 4 },
-            { ">>", 4 },
-            { "+", 5 },
-            { "-", 5 },
-            { "*", 6 },
-            { "/", 6 },
-            { "%", 6 }
-        };
         static Dictionary<string, object> knowns = new Dictionary<string, object> {
             { "true", true },
             { "false", false },
@@ -245,7 +223,7 @@ namespace Jokenizer.Net {
         }
 
         UnaryToken TryUnary() {
-            if (unary.Contains(ch)) {
+            if (settings.ContainsUnary(ch)) {
                 var u = ch;
                 Move();
                 return new UnaryToken(u, GetToken());
@@ -401,16 +379,15 @@ namespace Jokenizer.Net {
         }
 
         BinaryToken TryBinary(Token t) {
-            var op = binary.FirstOrDefault(b => Get(b.Key));
-
-            if (op.Equals(default(KeyValuePair<string, int>))) return null;
+            var op = settings.BinaryExpressions.FirstOrDefault(b => Get(b));
+            if (op == null) return null;
 
             var right = GetToken();
 
             if (right is BinaryToken bt)
-                return FixPrecedence(t, op.Key, bt);
+                return FixPrecedence(t, op, bt);
 
-            return new BinaryToken(op.Key, t, right);
+            return new BinaryToken(op, t, right);
         }
 
         bool IsSpace() {
@@ -469,10 +446,10 @@ namespace Jokenizer.Net {
         }
 
         BinaryToken FixPrecedence(Token left, string leftOp, BinaryToken right) {
-            var p1 = Tokenizer.binary[leftOp];
-            var p2 = Tokenizer.binary[right.Operator];
+            settings.TryGetBinaryInfo(leftOp, out var lo);
+            settings.TryGetBinaryInfo(right.Operator, out var ro);
 
-            return p2 < p1
+            return ro.Precedence < lo.Precedence
                 ? new BinaryToken(right.Operator, new BinaryToken(leftOp, left, right.Left), right.Right)
                 : new BinaryToken(leftOp, left, right);
         }
