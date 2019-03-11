@@ -7,11 +7,6 @@ namespace Jokenizer.Net {
     using Tokens;
 
     public class Tokenizer {
-        static Dictionary<string, object> knowns = new Dictionary<string, object> {
-            { "true", true },
-            { "false", false },
-            { "null", null }
-        };
         static string separator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
 
         readonly Settings settings;
@@ -49,7 +44,7 @@ namespace Jokenizer.Net {
             if (t == null) return t;
 
             if (t is VariableToken vt) {
-                if (knowns.TryGetValue(vt.Name, out var value)) {
+                if (settings.TryGetKnownValue(vt.Name, out var value)) {
                     t = new LiteralToken(value);
                 } else if (vt.Name == "new") {
                     Skip();

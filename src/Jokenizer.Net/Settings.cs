@@ -10,6 +10,9 @@ namespace Jokenizer.Net {
         private static Lazy<Settings> _default = new Lazy<Settings>();
         public static Settings Default => _default.Value;
 
+        static ConcurrentDictionary<string, object> _knowns = new ConcurrentDictionary<string, object>();
+        public IEnumerable<string> KnownIdentifiers => _knowns.Keys;
+
         private ConcurrentDictionary<char, UnaryExpressionConverter> _unary
             = new ConcurrentDictionary<char, UnaryExpressionConverter>();
         public IEnumerable<char> UnaryExpressions => _unary.Keys;
@@ -19,6 +22,10 @@ namespace Jokenizer.Net {
         public IEnumerable<string> BinaryExpressions => _binary.Keys;
 
         public Settings() {
+            AddKnownValue("null", null);
+            AddKnownValue("true", true);
+            AddKnownValue("false", false);
+            
             AddUnaryOperator('-', ExpressionType.Negate);
             AddUnaryOperator('+', ExpressionType.UnaryPlus);
             AddUnaryOperator('!', ExpressionType.Not);
@@ -45,9 +52,17 @@ namespace Jokenizer.Net {
             AddBinaryOperator("%", 6, ExpressionType.Modulo);
         }
 
-        public Settings AddUnaryOperator(char op, ExpressionType type) {
-            return AddUnaryOperator(op, DefaultUnaryExpressionConverter(type));
+        public Settings AddKnownValue(string identifier, object value) {
+            _knowns.AddOrUpdate(identifier, i => value, (i, v) => value);
+            return this;
         }
+
+        public bool ContainsKnown(string identifier) => _knowns.ContainsKey(identifier);
+        
+        public bool TryGetKnownValue(string identifier, out object value) => _knowns.TryGetValue(identifier, out value);
+        
+        public Settings AddUnaryOperator(char op, ExpressionType type)
+            => AddUnaryOperator(op, DefaultUnaryExpressionConverter(type));
 
         public Settings AddUnaryOperator(char op, UnaryExpressionConverter converter) {
             _unary.AddOrUpdate(op, converter, (o, c) => converter);
