@@ -10,40 +10,13 @@ namespace Jokenizer.Net {
     using Tokens;
 
     public class TokenVisitor {
-
-        static readonly Dictionary<char, ExpressionType> unary = new Dictionary<char, ExpressionType> {
-            { '-', ExpressionType.Negate },
-            { '+', ExpressionType.UnaryPlus },
-            { '!', ExpressionType.Not },
-            { '~', ExpressionType.OnesComplement }
-        };
-
-        static readonly Dictionary<string, ExpressionType> binary = new Dictionary<string, ExpressionType> {
-            { "&&", ExpressionType.And },
-            { "||", ExpressionType.OrElse },
-            { "??", ExpressionType.Coalesce },
-            { "|", ExpressionType.Or },
-            { "^", ExpressionType.ExclusiveOr },
-            { "&", ExpressionType.And },
-            { "==", ExpressionType.Equal },
-            { "!=", ExpressionType.NotEqual },
-            { "<=", ExpressionType.LessThanOrEqual },
-            { ">=", ExpressionType.GreaterThanOrEqual },
-            { "<", ExpressionType.LessThan },
-            { ">", ExpressionType.GreaterThan },
-            { "<<", ExpressionType.LeftShift },
-            { ">>", ExpressionType.RightShift },
-            { "+", ExpressionType.Add },
-            { "-", ExpressionType.Subtract },
-            { "*", ExpressionType.Multiply },
-            { "/", ExpressionType.Divide },
-            { "%", ExpressionType.Modulo }
-        };
         static readonly MethodInfo concatMethod = typeof(string).GetMethod("Concat", new[] { typeof(string), typeof(string) });
 
+        readonly Settings settings;
         readonly IDictionary<string, object> variables;
 
-        public TokenVisitor(IDictionary<string, object> variables, IEnumerable<object> values) {
+        public TokenVisitor(IDictionary<string, object> variables, IEnumerable<object> values, Settings settings = null) {
+            this.settings = settings ?? Settings.Default;
             this.variables = variables ?? new Dictionary<string, object>();
 
             if (values != null) {
@@ -250,16 +223,16 @@ namespace Jokenizer.Net {
                 : Expression.Call(method.IsStatic ? null : owner, method, methodArgs);
         }
 
-        static BinaryExpression GetBinary(string op, Expression left, Expression right) {
-            if (binary.TryGetValue(op, out var et))
-                return Expression.MakeBinary(et, left, right);
+        Expression GetBinary(string op, Expression left, Expression right) {
+            if (settings.TryGetBinaryInfo(op, out var bi))
+                return bi.ExpressionConverter(left, right);
 
             throw new InvalidTokenException($"Unknown binary operator {op}");
         }
 
-        static Expression GetUnary(char op, Expression exp) {
-            if (unary.TryGetValue(op, out var ut))
-                return Expression.MakeUnary(ut, exp, null);
+        Expression GetUnary(char op, Expression exp) {
+            if (settings.TryGetUnaryConverter(op, out var uc))
+                return uc(exp);
 
             throw new InvalidTokenException($"Unknown unary operator {op}");
         }
