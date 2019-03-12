@@ -53,6 +53,10 @@ namespace Jokenizer.Net.Tests {
 
             var v3 = Evaluator.ToFunc<object>("null");
             Assert.Null(v3());
+
+            var settings = new Settings().AddKnownValue("secret", 42);
+            var v4 = Evaluator.ToFunc<int>("secret", settings);
+            Assert.Equal(42, v4());
         }
 
         [Fact]
@@ -322,38 +326,6 @@ namespace Jokenizer.Net.Tests {
 
             var f12 = Evaluator.ToFunc<int, int, int>("(i1, i2) => i1 + i2 + init + @0", new Dictionary<string, object> { { "init", 1 } }, 1);
             Assert.Equal(42, f12(24, 16));
-
-            // var l1 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2");
-            // var l2 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2", new Dictionary<string, object>());
-            // var l3 = Evaluator.ToLambda<int, int>("(i1) => i1 + 2");
-            // var l4 = Evaluator.ToLambda<int, int>("(i1) => i1 + 2", new Dictionary<string, object>());
-            // var l5 = Evaluator.ToLambda<int>("() => 3");
-            // var l6 = Evaluator.ToLambda<int>("() => 3", new Dictionary<string, object>());
-            // var l7 = Evaluator.ToLambda("() => 3", Enumerable.Empty<Type>());
-            // var l8 = Evaluator.ToLambda("() => 3", Enumerable.Empty<Type>(), new Dictionary<string, object>());
-
-            // var l1 = Evaluator.ToLambda();
-
-            // var f1 = Evaluator.ToFunc("() => 3", Enumerable.Empty<Type>());
-            // var f2 = Evaluator.ToFunc("() => 3", Enumerable.Empty<Type>(), new Dictionary<string, object>());
-
-            // var f3 = Evaluator.ToFunc<int>("() => 3");
-            // Assert.Equal(3, f3());
-
-            // var f6 = Evaluator.ToFunc<int>("() => 3", new Dictionary<string, object>());
-            // Assert.Equal(3, f6());
-
-            // var f4 = Evaluator.ToFunc<int, int, int>("(i1, i2) => i1 + i2", new Dictionary<string, object>());
-            // Assert.Equal(3, f4(1, 2));
-
-            // var f5 = Evaluator.ToFunc<int, int>("(i1) => i1 + 2");
-            // Assert.Equal(3, f5(1));
-
-            // var f6 = Evaluator.ToFunc<int, int>("(i1) => i1 + 2", new Dictionary<string, object>());
-            // Assert.Equal(3, f6(1));
-
-            // var f3 = Evaluator.ToFunc<int, int, int>("(i1, i2) => i1 + i2");
-            // Assert.Equal(3, f3(1, 2));
         }
 
         [Fact]
