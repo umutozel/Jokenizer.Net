@@ -48,8 +48,7 @@ namespace Jokenizer.Net {
         public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(Token token, IDictionary<string, object> variables, Settings settings, params object[] parameters)
             => (Expression<Func<T1, T2, TResult>>)ToLambda(token, new[] { typeof(T1), typeof(T2) }, variables, settings, parameters);
 
-        public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(Token token, IDictionary<string, object> variables,
-                                                                                    params object[] parameters)
+        public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(Token token, IDictionary<string, object> variables, params object[] parameters)
             => ToLambda<T1, T2, TResult>(token, variables, null, parameters);
 
         public static Expression<Func<T1, T2, TResult>> ToLambda<T1, T2, TResult>(Token token, Settings settings, params object[] parameters)

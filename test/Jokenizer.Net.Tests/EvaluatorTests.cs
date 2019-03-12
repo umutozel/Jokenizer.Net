@@ -245,35 +245,128 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void MethodSignatureTests() {
-            var l1 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2");
-            var l2 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2", new Dictionary<string, object>());
-            var l3 = Evaluator.ToLambda<int, int>("(i1) => i1 + 2");
-            var l4 = Evaluator.ToLambda<int, int>("(i1) => i1 + 2", new Dictionary<string, object>());
-            var l5 = Evaluator.ToLambda<int>("() => 3");
-            var l6 = Evaluator.ToLambda<int>("() => 3", new Dictionary<string, object>());
-            var l7 = Evaluator.ToLambda("() => 3", Enumerable.Empty<Type>());
-            var l8 = Evaluator.ToLambda("() => 3", Enumerable.Empty<Type>(), new Dictionary<string, object>());
+            var l1 = Evaluator.ToLambda(Tokenizer.Parse("i1 => i1 + i2 + @0"), new Type[] { typeof(int) }, new Dictionary<string, object> { { "i2", 17 } }, 1);
+            Assert.Equal(42, ((Func<int, int>)l1.Compile())(24));
 
-            var f1 = Evaluator.ToFunc<int, int, int>("(i1, i2) => i1 + i2");
-            Assert.Equal(3, f1(1, 2));
+            var l2 = Evaluator.ToLambda(Tokenizer.Parse("i1 => i1 + 17 + @0"), new Type[] { typeof(int) }, 1);
+            Assert.Equal(42, ((Func<int, int>)l2.Compile())(24));
 
-            var f2 = Evaluator.ToFunc<int, int, int>("(i1, i2) => i1 + i2", new Dictionary<string, object>());
-            Assert.Equal(3, f2(1, 2));
+            var l3 = Evaluator.ToLambda<int>(Tokenizer.Parse("() => 24 + i2 + @0"), new Dictionary<string, object> { { "i2", 17 } }, 1);
+            Assert.Equal(42, l3.Compile()());
 
-            var f3 = Evaluator.ToFunc<int, int>("(i1) => i1 + 2");
-            Assert.Equal(3, f3(1));
+            var l4 = Evaluator.ToLambda<int, int>(Tokenizer.Parse("i1 => i1 + i2 + @0"), new Dictionary<string, object> { { "i2", 17 } }, 1);
+            Assert.Equal(42, l4.Compile()(24));
 
-            var f4 = Evaluator.ToFunc<int, int>("(i1) => i1 + 2", new Dictionary<string, object>());
-            Assert.Equal(3, f4(1));
+            var l5 = Evaluator.ToLambda<int, int>(Tokenizer.Parse("i1 => i1 + @0"), 18);
+            Assert.Equal(42, l5.Compile()(24));
 
-            var f5 = Evaluator.ToFunc<int>("() => 3");
-            Assert.Equal(3, f5());
+            var l6 = Evaluator.ToLambda<int, int, int>(Tokenizer.Parse("(i1, i2) => i1 + i2 + init + @0"), new Dictionary<string, object> { { "init", 1 } }, 1);
+            Assert.Equal(42, l6.Compile()(24, 16));
 
-            var f6 = Evaluator.ToFunc<int>("() => 3", new Dictionary<string, object>());
-            Assert.Equal(3, f6());
+            var l7 = Evaluator.ToLambda<int, int, int>(Tokenizer.Parse("(i1, i2) => i1 + i2 + @0"), 1);
+            Assert.Equal(42, l7.Compile()(24, 17));
 
-            var f7 = Evaluator.ToFunc("() => 3", Enumerable.Empty<Type>());
-            var f8 = Evaluator.ToFunc("() => 3", Enumerable.Empty<Type>(), new Dictionary<string, object>());
+            var l8 = Evaluator.ToLambda("i1 => i1 + i2 + @0", new Type[] { typeof(int) }, new Dictionary<string, object> { { "i2", 17 } }, 1);
+            Assert.Equal(42, ((Func<int, int>)l8.Compile())(24));
+
+            var l9 = Evaluator.ToLambda("i1 => i1 + 17 + @0", new Type[] { typeof(int) }, 1);
+            Assert.Equal(42, ((Func<int, int>)l9.Compile())(24));
+
+            var l10 = Evaluator.ToLambda<int>("() => 24 + i2 + @0", new Dictionary<string, object> { { "i2", 17 } }, 1);
+            Assert.Equal(42, l10.Compile()());
+
+            var l11 = Evaluator.ToLambda<int, int>("i1 => i1 + i2 + @0", new Dictionary<string, object> { { "i2", 17 } }, 1);
+            Assert.Equal(42, l11.Compile()(24));
+
+            var l12 = Evaluator.ToLambda<int, int>("i1 => i1 + @0", 18);
+            Assert.Equal(42, l12.Compile()(24));
+
+            var l13 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2 + init + @0", new Dictionary<string, object> { { "init", 1 } }, 1);
+            Assert.Equal(42, l13.Compile()(24, 16));
+
+            var l14 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2 + @0", 1);
+            Assert.Equal(42, l14.Compile()(24, 17));
+
+            var f1 = Evaluator.ToFunc(Tokenizer.Parse("i1 => i1 + i2 + @0"), new Type[] { typeof(int) }, new Dictionary<string, object> { { "i2", 17 } }, 1);
+            Assert.Equal(42, ((Func<int, int>)f1)(24));
+
+            var f2 = Evaluator.ToFunc(Tokenizer.Parse("i1 => i1 + 17 + @0"), new Type[] { typeof(int) }, 1);
+            Assert.Equal(42, ((Func<int, int>)f2)(24));
+
+            var f3 = Evaluator.ToFunc<int>(Tokenizer.Parse("() => 24 + i2 + @0"), new Dictionary<string, object> { { "i2", 17 } }, 1);
+            Assert.Equal(42, f3());
+
+            var f4 = Evaluator.ToFunc<int>(Tokenizer.Parse("() => 24 + @0"), 18);
+            Assert.Equal(42, f4());
+
+            var f5 = Evaluator.ToFunc<int, int>(Tokenizer.Parse("i1 => i1 + i2 + @0"), new Dictionary<string, object> { { "i2", 17 } }, 1);
+            Assert.Equal(42, f5(24));
+
+            var f6 = Evaluator.ToFunc<int, int>(Tokenizer.Parse("i1 => i1 + @0"), 18);
+            Assert.Equal(42, f6(24));
+
+            var f7 = Evaluator.ToFunc<int, int, int>(Tokenizer.Parse("(i1, i2) => i1 + i2 + init + @0"), new Dictionary<string, object> { { "init", 1 } }, 1);
+            Assert.Equal(42, f7(24, 16));
+
+            var f8 = Evaluator.ToFunc<int, int, int>(Tokenizer.Parse("(i1, i2) => i1 + i2 + @0"), 1);
+            Assert.Equal(42, f8(24, 17));
+
+            var f9 = Evaluator.ToFunc("i1 => i1 + i2 + @0", new Type[] { typeof(int) }, new Dictionary<string, object> { { "i2", 17 } }, 1);
+            Assert.Equal(42, ((Func<int, int>)f9)(24));
+
+            var f10 = Evaluator.ToFunc("i1 => i1 + 17 + @0", new Type[] { typeof(int) }, 1);
+            Assert.Equal(42, ((Func<int, int>)f10)(24));
+
+            var f11 = Evaluator.ToFunc<int, int>("i1 => i1 + i2 + @0", new Dictionary<string, object> { { "i2", 17 } }, 1);
+            Assert.Equal(42, f11(24));
+
+            var f12 = Evaluator.ToFunc<int, int, int>("(i1, i2) => i1 + i2 + init + @0", new Dictionary<string, object> { { "init", 1 } }, 1);
+            Assert.Equal(42, f12(24, 16));
+
+            // var l1 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2");
+            // var l2 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2", new Dictionary<string, object>());
+            // var l3 = Evaluator.ToLambda<int, int>("(i1) => i1 + 2");
+            // var l4 = Evaluator.ToLambda<int, int>("(i1) => i1 + 2", new Dictionary<string, object>());
+            // var l5 = Evaluator.ToLambda<int>("() => 3");
+            // var l6 = Evaluator.ToLambda<int>("() => 3", new Dictionary<string, object>());
+            // var l7 = Evaluator.ToLambda("() => 3", Enumerable.Empty<Type>());
+            // var l8 = Evaluator.ToLambda("() => 3", Enumerable.Empty<Type>(), new Dictionary<string, object>());
+
+            // var l1 = Evaluator.ToLambda();
+
+            // var f1 = Evaluator.ToFunc("() => 3", Enumerable.Empty<Type>());
+            // var f2 = Evaluator.ToFunc("() => 3", Enumerable.Empty<Type>(), new Dictionary<string, object>());
+
+            // var f3 = Evaluator.ToFunc<int>("() => 3");
+            // Assert.Equal(3, f3());
+
+            // var f6 = Evaluator.ToFunc<int>("() => 3", new Dictionary<string, object>());
+            // Assert.Equal(3, f6());
+
+            // var f4 = Evaluator.ToFunc<int, int, int>("(i1, i2) => i1 + i2", new Dictionary<string, object>());
+            // Assert.Equal(3, f4(1, 2));
+
+            // var f5 = Evaluator.ToFunc<int, int>("(i1) => i1 + 2");
+            // Assert.Equal(3, f5(1));
+
+            // var f6 = Evaluator.ToFunc<int, int>("(i1) => i1 + 2", new Dictionary<string, object>());
+            // Assert.Equal(3, f6(1));
+
+            // var f3 = Evaluator.ToFunc<int, int, int>("(i1, i2) => i1 + i2");
+            // Assert.Equal(3, f3(1, 2));
+        }
+
+        [Fact]
+        public void SettingTests() {
+            var settings = new Settings();
+
+            Assert.Equal(3, settings.KnownIdentifiers.Count());
+            Assert.Equal(4, settings.UnaryExpressions.Count());
+            Assert.Equal(19, settings.BinaryExpressions.Count());
+
+            Assert.True(settings.ContainsKnown("true"));
+            Assert.True(settings.ContainsUnary('!'));
+            Assert.True(settings.ContainsBinary("%"));
         }
     }
 }
