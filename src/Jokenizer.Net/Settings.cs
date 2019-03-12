@@ -10,7 +10,7 @@ namespace Jokenizer.Net {
         private static Lazy<Settings> _default = new Lazy<Settings>();
         public static Settings Default => _default.Value;
 
-        static ConcurrentDictionary<string, object> _knowns = new ConcurrentDictionary<string, object>();
+        ConcurrentDictionary<string, object> _knowns = new ConcurrentDictionary<string, object>();
         public IEnumerable<string> KnownIdentifiers => _knowns.Keys;
 
         private ConcurrentDictionary<char, UnaryExpressionConverter> _unary
@@ -98,7 +98,7 @@ namespace Jokenizer.Net {
             };
         }
 
-        static void FixTypes(ref Expression left, ref Expression right) {
+        private static void FixTypes(ref Expression left, ref Expression right) {
             if (left.Type == right.Type) return;
 
             var ok =
@@ -115,7 +115,7 @@ namespace Jokenizer.Net {
             }
         }
 
-        static bool TryFixNullable(Expression e1, ref Expression e2) {
+        private static bool TryFixNullable(Expression e1, ref Expression e2) {
             if (!e2.Type.IsConstructedGenericType
                 || e2.Type.GetGenericTypeDefinition() != typeof(Nullable<>)
                 || e2.Type.GetGenericArguments()[0] != e2.Type)
@@ -126,7 +126,7 @@ namespace Jokenizer.Net {
             return true;
         }
 
-        static bool TryFixForGuid(Expression e1, ref Expression e2) {
+        private static bool TryFixForGuid(Expression e1, ref Expression e2) {
             if ((e1.Type != typeof(Guid?) && e1.Type != typeof(Guid)) || e2.Type != typeof(string) || !(e2 is ConstantExpression ce2))
                 return false;
 
@@ -139,7 +139,7 @@ namespace Jokenizer.Net {
             return true;
         }
 
-        static bool TryFixForDateTime(Expression e1, ref Expression e2) {
+        private static bool TryFixForDateTime(Expression e1, ref Expression e2) {
             if ((e1.Type != typeof(DateTime?) && e1.Type != typeof(DateTime)) || e2.Type != typeof(string) || !(e2 is ConstantExpression ce2))
                 return false;
 
