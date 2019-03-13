@@ -118,7 +118,7 @@ namespace Jokenizer.Net {
         private static bool TryFixNullable(Expression e1, ref Expression e2) {
             if (!e2.Type.IsConstructedGenericType
                 || e2.Type.GetGenericTypeDefinition() != typeof(Nullable<>)
-                || e2.Type.GetGenericArguments()[0] != e2.Type)
+                || e2.Type.GetGenericArguments()[0] != e1.Type)
                 return false;
 
             e2 = Expression.Convert(e2, e1.Type);
