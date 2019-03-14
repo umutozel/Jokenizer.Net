@@ -1,9 +1,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Jokenizer.Net {
     using Dynamic;
@@ -104,7 +106,29 @@ namespace Jokenizer.Net {
         }
 
         protected virtual Expression VisitIndexer(IndexerToken token, IEnumerable<ParameterExpression> parameters) {
-            return Expression.ArrayIndex(Visit(token.Owner, parameters), Visit(token.Key, parameters));
+            var owner = Visit(token.Owner, parameters);
+            var key = Visit(token.Key, parameters);
+
+            return CreateIndexer(owner, key);
+        }
+
+        private Expression CreateIndexer(Expression owner, Expression key) {
+            if (owner.Type.IsArray && key.Type == typeof(int))
+                return Expression.ArrayIndex(owner, key);
+
+            PropertyInfo indexer;
+            if (owner.Type == typeof(ExpandoObject)) {
+                owner = Expression.Convert(owner, typeof(IDictionary<string, object>));
+                indexer = owner.Type.GetProperty("Item");
+            } else {
+                var defaultMemberAttr = (DefaultMemberAttribute)owner.Type.GetCustomAttribute(typeof(DefaultMemberAttribute));
+                indexer = owner.Type.GetProperty(defaultMemberAttr?.MemberName ?? "Item");
+            }
+
+            if (indexer == null)
+                throw new InvalidTokenException($"Cannot find indexer on type {owner.Type}");
+
+            return Expression.MakeIndex(owner, indexer, new[] { key });
         }
 
         protected virtual LambdaExpression VisitLambda(LambdaToken token, IEnumerable<Type> typeParameters, IEnumerable<ParameterExpression> parameters = null) {
@@ -119,7 +143,20 @@ namespace Jokenizer.Net {
         }
 
         protected virtual Expression VisitMember(MemberToken token, IEnumerable<ParameterExpression> parameters) {
-            return Expression.PropertyOrField(Visit(token.Owner, parameters), token.Name);
+            var owner = Visit(token.Owner, parameters);
+            return GetMember(owner, token.Name, parameters);
+        }
+
+        private Expression GetMember(Expression owner, string name, IEnumerable<ParameterExpression> parameters) {
+            var prop = owner.Type.GetProperty(name);
+            if (prop != null)
+                return Expression.Property(owner, prop);
+
+            var field = owner.Type.GetField(name);
+            if (field != null)
+                return Expression.Field(owner, field);
+
+            return CreateIndexer(owner, Expression.Constant(name));
         }
 
         protected virtual Expression VisitObject(ObjectToken token, IEnumerable<ParameterExpression> parameters) {
@@ -160,7 +197,7 @@ namespace Jokenizer.Net {
 
             if (parameters.Count() == 1) {
                 var owner = parameters.First();
-                return Expression.PropertyOrField(owner, name);
+                return GetMember(owner, name, parameters);
             }
 
             throw new InvalidTokenException($"Unknown variable {name}");
@@ -169,7 +206,7 @@ namespace Jokenizer.Net {
         MethodCallExpression GetMethodCall(Expression owner, string methodName, Token[] args, IEnumerable<ParameterExpression> parameters) {
             if (methodName == "GetType")
                 throw new InvalidOperationException("GetType cannot be called");
-            
+
             var methodArgs = new Expression[args.Length];
             var lambdaArgs = new Dictionary<int, LambdaToken>();
             for (var i = 0; i < args.Length; i++) {

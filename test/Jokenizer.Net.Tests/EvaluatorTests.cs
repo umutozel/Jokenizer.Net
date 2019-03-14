@@ -83,7 +83,7 @@ namespace Jokenizer.Net.Tests {
         public void ShouldEvaluateCustomUnary() {
             var settings = new Settings()
                 .AddUnaryOperator('^', e => Expression.Multiply(e, e));
-            
+
             var v = Evaluator.ToFunc<int>("^Id", new Dictionary<string, object> { { "Id", 16 } }, settings);
             Assert.Equal(256, v());
         }
@@ -125,8 +125,23 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void ShouldEvaluateIndexer() {
-            var v = Evaluator.ToFunc<string>("@0[0]", new string[] { "Rick" }, null);
-            Assert.Equal("Rick", v());
+            var name = "Rick";
+            var names = new[] { name };
+            dynamic user = new ExpandoObject();
+            user.Name = name;
+            dynamic model = new ExpandoObject();
+            model.names = names;
+            model.user = user;
+
+            var v1 = Evaluator.ToFunc<string>("names[0]", model);
+            Assert.Equal("Rick", v1());
+
+            var v2 = Evaluator.ToFunc<object>("user[\"Name\"]", model);
+            Assert.Equal("Rick", v2());
+
+            // should try indexer for missing member access
+            var v3 = Evaluator.ToFunc<object>("user.Name", model);
+            Assert.Equal("Rick", v3());
         }
 
         [Fact]
@@ -249,10 +264,10 @@ namespace Jokenizer.Net.Tests {
 
         [Fact]
         public void MethodSignatureTests() {
-            var l1 = Evaluator.ToLambda(Tokenizer.Parse("i1 => i1 + i2 + @0"), new Type[] { typeof(int) }, new Dictionary<string, object> { { "i2", 17 } }, 1);
+            var l1 = Evaluator.ToLambda(Tokenizer.Parse("i1 => i1 + i2 + @0"), new Type[] { typeof(int) }, new Dictionary<string, object> { { "i2", 17 } }, 1);
             Assert.Equal(42, ((Func<int, int>)l1.Compile())(24));
 
-            var l2 = Evaluator.ToLambda(Tokenizer.Parse("i1 => i1 + 17 + @0"), new Type[] { typeof(int) }, 1);
+            var l2 = Evaluator.ToLambda(Tokenizer.Parse("i1 => i1 + 17 + @0"), new Type[] { typeof(int) }, 1);
             Assert.Equal(42, ((Func<int, int>)l2.Compile())(24));
 
             var l3 = Evaluator.ToLambda<int>(Tokenizer.Parse("() => 24 + i2 + @0"), new Dictionary<string, object> { { "i2", 17 } }, 1);
@@ -270,10 +285,10 @@ namespace Jokenizer.Net.Tests {
             var l7 = Evaluator.ToLambda<int, int, int>(Tokenizer.Parse("(i1, i2) => i1 + i2 + @0"), 1);
             Assert.Equal(42, l7.Compile()(24, 17));
 
-            var l8 = Evaluator.ToLambda("i1 => i1 + i2 + @0", new Type[] { typeof(int) }, new Dictionary<string, object> { { "i2", 17 } }, 1);
+            var l8 = Evaluator.ToLambda("i1 => i1 + i2 + @0", new Type[] { typeof(int) }, new Dictionary<string, object> { { "i2", 17 } }, 1);
             Assert.Equal(42, ((Func<int, int>)l8.Compile())(24));
 
-            var l9 = Evaluator.ToLambda("i1 => i1 + 17 + @0", new Type[] { typeof(int) }, 1);
+            var l9 = Evaluator.ToLambda("i1 => i1 + 17 + @0", new Type[] { typeof(int) }, 1);
             Assert.Equal(42, ((Func<int, int>)l9.Compile())(24));
 
             var l10 = Evaluator.ToLambda<int>("() => 24 + i2 + @0", new Dictionary<string, object> { { "i2", 17 } }, 1);
@@ -291,10 +306,10 @@ namespace Jokenizer.Net.Tests {
             var l14 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2 + @0", 1);
             Assert.Equal(42, l14.Compile()(24, 17));
 
-            var f1 = Evaluator.ToFunc(Tokenizer.Parse("i1 => i1 + i2 + @0"), new Type[] { typeof(int) }, new Dictionary<string, object> { { "i2", 17 } }, 1);
+            var f1 = Evaluator.ToFunc(Tokenizer.Parse("i1 => i1 + i2 + @0"), new Type[] { typeof(int) }, new Dictionary<string, object> { { "i2", 17 } }, 1);
             Assert.Equal(42, ((Func<int, int>)f1)(24));
 
-            var f2 = Evaluator.ToFunc(Tokenizer.Parse("i1 => i1 + 17 + @0"), new Type[] { typeof(int) }, 1);
+            var f2 = Evaluator.ToFunc(Tokenizer.Parse("i1 => i1 + 17 + @0"), new Type[] { typeof(int) }, 1);
             Assert.Equal(42, ((Func<int, int>)f2)(24));
 
             var f3 = Evaluator.ToFunc<int>(Tokenizer.Parse("() => 24 + i2 + @0"), new Dictionary<string, object> { { "i2", 17 } }, 1);
@@ -315,10 +330,10 @@ namespace Jokenizer.Net.Tests {
             var f8 = Evaluator.ToFunc<int, int, int>(Tokenizer.Parse("(i1, i2) => i1 + i2 + @0"), 1);
             Assert.Equal(42, f8(24, 17));
 
-            var f9 = Evaluator.ToFunc("i1 => i1 + i2 + @0", new Type[] { typeof(int) }, new Dictionary<string, object> { { "i2", 17 } }, 1);
+            var f9 = Evaluator.ToFunc("i1 => i1 + i2 + @0", new Type[] { typeof(int) }, new Dictionary<string, object> { { "i2", 17 } }, 1);
             Assert.Equal(42, ((Func<int, int>)f9)(24));
 
-            var f10 = Evaluator.ToFunc("i1 => i1 + 17 + @0", new Type[] { typeof(int) }, 1);
+            var f10 = Evaluator.ToFunc("i1 => i1 + 17 + @0", new Type[] { typeof(int) }, 1);
             Assert.Equal(42, ((Func<int, int>)f10)(24));
 
             var f11 = Evaluator.ToFunc<int, int>("i1 => i1 + i2 + @0", new Dictionary<string, object> { { "i2", 17 } }, 1);
