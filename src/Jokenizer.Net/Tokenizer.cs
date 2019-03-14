@@ -30,7 +30,7 @@ namespace Jokenizer.Net {
             ch = exp.ElementAt(0);
         }
 
-        Token GetToken() {
+        public virtual Token GetToken() {
             Skip();
 
             var t = TryLiteral()
@@ -70,7 +70,7 @@ namespace Jokenizer.Net {
             return r;
         }
 
-        LiteralToken TryNumber() {
+        protected virtual LiteralToken TryNumber() {
             var n = GetNumber();
 
             bool isFloat = false;
@@ -91,7 +91,7 @@ namespace Jokenizer.Net {
             return null;
         }
 
-        string GetNumber() {
+        protected string GetNumber() {
             var n = "";
             while (IsNumber()) {
                 n += ch;
@@ -100,7 +100,7 @@ namespace Jokenizer.Net {
             return n;
         }
 
-        Token TryString() {
+        protected virtual Token TryString() {
             bool inter = false;
             if (ch == '$') {
                 inter = true;
@@ -185,16 +185,16 @@ namespace Jokenizer.Net {
             throw new InvalidSyntaxException($"Unclosed quote after {s}");
         }
 
-        Token TryLiteral() {
+        protected virtual Token TryLiteral() {
             return TryNumber() ?? TryString();
         }
 
-        VariableToken TryVariable() {
+        protected virtual VariableToken TryVariable() {
             var v = GetVariableName();
             return v != "" ? new VariableToken(v) : null;
         }
 
-        string GetVariableName() {
+        protected string GetVariableName() {
             var v = "";
 
             if (IsVariableStart()) {
@@ -207,7 +207,7 @@ namespace Jokenizer.Net {
             return v;
         }
 
-        VariableToken TryParameter() {
+        protected virtual VariableToken TryParameter() {
             if (!Get("@")) return null;
 
             var n = GetNumber();
@@ -217,7 +217,7 @@ namespace Jokenizer.Net {
             return new VariableToken("@" + n);
         }
 
-        UnaryToken TryUnary() {
+        protected virtual UnaryToken TryUnary() {
             if (settings.ContainsUnary(ch)) {
                 var u = ch;
                 Move();
@@ -227,11 +227,11 @@ namespace Jokenizer.Net {
             return null;
         }
 
-        GroupToken TryGroup() {
+        protected virtual GroupToken TryGroup() {
             return Get("(") ? new GroupToken(GetGroup()) : null;
         }
 
-        IEnumerable<Token> GetGroup() {
+        protected virtual IEnumerable<Token> GetGroup() {
             var es = new List<Token>();
             do {
                 var e = GetToken();
@@ -245,7 +245,7 @@ namespace Jokenizer.Net {
             return es;
         }
 
-        ObjectToken TryObject() {
+        protected virtual ObjectToken TryObject() {
             if (!Get("{")) return null;
 
             var es = new List<AssignToken>();
@@ -273,7 +273,7 @@ namespace Jokenizer.Net {
             return new ObjectToken(es);
         }
 
-        ArrayToken TryShortArray() {
+        protected virtual ArrayToken TryShortArray() {
             if (!Get("[")) return null;
 
             var tokens = GetArrayTokens();
@@ -282,7 +282,7 @@ namespace Jokenizer.Net {
             return new ArrayToken(tokens);
         }
 
-        ArrayToken GetArray() {
+        protected virtual ArrayToken GetArray() {
             To("[");
             To("]");
             To("{");
@@ -292,7 +292,7 @@ namespace Jokenizer.Net {
             return new ArrayToken(tokens);
         }
 
-        IEnumerable<Token> GetArrayTokens() {
+        protected IEnumerable<Token> GetArrayTokens() {
             var ts = new List<Token>();
             do {
                 Skip();
@@ -310,7 +310,7 @@ namespace Jokenizer.Net {
             return ts;
         }
 
-        MemberToken TryMember(Token t) {
+        protected virtual MemberToken TryMember(Token t) {
             if (!Get(".")) return null;
 
             Skip();
@@ -320,7 +320,7 @@ namespace Jokenizer.Net {
             return new MemberToken(t, v);
         }
 
-        IndexerToken TryIndexer(Token t) {
+        protected virtual IndexerToken TryIndexer(Token t) {
             if (!Get("[")) return null;
 
             Skip();
@@ -330,14 +330,14 @@ namespace Jokenizer.Net {
             return new IndexerToken(t, k);
         }
 
-        LambdaToken TryLambda(Token t) {
+        protected virtual LambdaToken TryLambda(Token t) {
             if (!Get("=>"))
                 return null;
 
             return new LambdaToken(GetToken(), GetParameters(t));
         }
 
-        IEnumerable<string> GetParameters(Token t) {
+        protected IEnumerable<string> GetParameters(Token t) {
             if (t is GroupToken gt) {
                 return gt.Tokens.Select(x => {
                     if (!(x is IVariableToken xv))
@@ -353,17 +353,17 @@ namespace Jokenizer.Net {
             return new[] { vt.Name };
         }
 
-        CallToken TryCall(Token t) {
+        protected virtual CallToken TryCall(Token t) {
             return Get("(") ? GetCall(t) : null;
         }
 
-        CallToken GetCall(Token t) {
+        protected CallToken GetCall(Token t) {
             var args = GetGroup();
 
             return new CallToken(t, args);
         }
 
-        TernaryToken TryTernary(Token t) {
+        protected virtual TernaryToken TryTernary(Token t) {
             if (!Get("?")) return null;
 
             var whenTrue = GetToken();
@@ -373,7 +373,7 @@ namespace Jokenizer.Net {
             return new TernaryToken(t, whenTrue, whenFalse);
         }
 
-        BinaryToken TryBinary(Token t) {
+        protected virtual BinaryToken TryBinary(Token t) {
             var op = settings.BinaryExpressions.FirstOrDefault(b => Get(b));
             if (op == null) return null;
 
@@ -385,35 +385,35 @@ namespace Jokenizer.Net {
             return new BinaryToken(op, t, right);
         }
 
-        bool IsSpace() {
+        protected bool IsSpace() {
             return Char.IsWhiteSpace(ch);
         }
 
-        bool IsNumber() {
+        protected bool IsNumber() {
             return char.IsNumber(ch);
         }
 
-        bool IsVariableStart() {
+        protected bool IsVariableStart() {
             return ch == 95                 // `_`
                 || (ch >= 65 && ch <= 90)   // A...Z
                 || (ch >= 97 && ch <= 122); // a...z
         }
 
-        bool StillVariable() {
+        protected bool StillVariable() {
             return IsVariableStart() || IsNumber();
         }
 
-        bool Done() {
+        protected bool Done() {
             return idx >= len;
         }
 
-        char Move(int count = 1) {
+        protected char Move(int count = 1) {
             idx += count;
             var d = Done();
             return ch = d ? '\0' : exp.ElementAt(idx);
         }
 
-        bool Get(string s) {
+        protected bool Get(string s) {
             if (Eq(idx, s)) {
                 Move(s.Length);
                 return true;
@@ -422,16 +422,16 @@ namespace Jokenizer.Net {
             return false;
         }
 
-        void Skip() {
+        protected void Skip() {
             while (IsSpace()) Move();
         }
 
-        bool Eq(int index, string target) {
+        protected bool Eq(int index, string target) {
             if (index + target.Length > exp.Length) return false;
             return exp.Substring(idx, target.Length) == target;
         }
 
-        void To(string c) {
+        protected void To(string c) {
             Skip();
 
             if (!Eq(idx, c))
@@ -440,7 +440,7 @@ namespace Jokenizer.Net {
             Move(c.Length);
         }
 
-        BinaryToken FixPrecedence(Token left, string leftOp, BinaryToken right) {
+        protected BinaryToken FixPrecedence(Token left, string leftOp, BinaryToken right) {
             settings.TryGetBinaryInfo(leftOp, out var lo);
             settings.TryGetBinaryInfo(right.Operator, out var ro);
 
