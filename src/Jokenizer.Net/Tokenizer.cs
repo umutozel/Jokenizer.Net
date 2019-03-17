@@ -7,14 +7,15 @@ namespace Jokenizer.Net {
     using Tokens;
 
     public class Tokenizer {
-        static string separator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
+        private static string separator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
 
-        readonly Settings settings;
-        readonly string exp;
-        readonly int len;
-        readonly IDictionary<string, object> externals;
-        int idx;
-        char ch;
+        protected readonly Settings settings;
+        protected readonly string exp;
+        private readonly int len;
+        private int _idx;
+        protected int idx => _idx;
+        private char _ch;
+        protected char ch => _ch;
 
         public Tokenizer(string exp, Settings settings = null) {
             if (exp == null)
@@ -24,10 +25,9 @@ namespace Jokenizer.Net {
 
             this.settings = settings ?? Settings.Default;
             this.exp = exp;
-            this.externals = externals ?? new Dictionary<string, object>();
 
             this.len = exp.Length;
-            ch = exp.ElementAt(0);
+            _ch = exp.ElementAt(0);
         }
 
         public virtual Token GetToken() {
@@ -408,9 +408,9 @@ namespace Jokenizer.Net {
         }
 
         protected char Move(int count = 1) {
-            idx += count;
+            _idx += count;
             var d = Done();
-            return ch = d ? '\0' : exp.ElementAt(idx);
+            return _ch = d ? '\0' : exp.ElementAt(idx);
         }
 
         protected bool Get(string s) {

@@ -12,14 +12,14 @@ namespace Jokenizer.Net {
     using Tokens;
 
     public class TokenVisitor {
-        static readonly MethodInfo concatMethod = typeof(string).GetMethod("Concat", new[] { typeof(string), typeof(string) });
+        private static readonly MethodInfo concatMethod = typeof(string).GetMethod("Concat", new[] { typeof(string), typeof(string) });
 
-        readonly Settings settings;
-        readonly IDictionary<string, object> variables;
+        protected readonly Settings settings;
+        protected readonly IDictionary<string, object> variables;
 
         public TokenVisitor(IDictionary<string, object> variables, IEnumerable<object> values, Settings settings = null) {
-            this.settings = settings ?? Settings.Default;
             this.variables = variables ?? new Dictionary<string, object>();
+            this.settings = settings ?? Settings.Default;
 
             if (values != null) {
                 var i = 0;
@@ -112,7 +112,7 @@ namespace Jokenizer.Net {
             return CreateIndexer(owner, key);
         }
 
-        private Expression CreateIndexer(Expression owner, Expression key) {
+        protected Expression CreateIndexer(Expression owner, Expression key) {
             if (owner.Type.IsArray && key.Type == typeof(int))
                 return Expression.ArrayIndex(owner, key);
 
@@ -147,7 +147,7 @@ namespace Jokenizer.Net {
             return GetMember(owner, token.Name, parameters);
         }
 
-        private Expression GetMember(Expression owner, string name, IEnumerable<ParameterExpression> parameters) {
+        protected Expression GetMember(Expression owner, string name, IEnumerable<ParameterExpression> parameters) {
             var prop = owner.Type.GetProperty(name);
             if (prop != null)
                 return Expression.Property(owner, prop);
@@ -203,7 +203,7 @@ namespace Jokenizer.Net {
             throw new InvalidTokenException($"Unknown variable {name}");
         }
 
-        MethodCallExpression GetMethodCall(Expression owner, string methodName, Token[] args, IEnumerable<ParameterExpression> parameters) {
+        protected MethodCallExpression GetMethodCall(Expression owner, string methodName, Token[] args, IEnumerable<ParameterExpression> parameters) {
             if (methodName == "GetType")
                 throw new InvalidOperationException("GetType cannot be called");
 
@@ -258,14 +258,14 @@ namespace Jokenizer.Net {
                 : Expression.Call(method.IsStatic ? null : owner, method, methodArgs);
         }
 
-        Expression GetBinary(string op, Expression left, Expression right) {
+        protected Expression GetBinary(string op, Expression left, Expression right) {
             if (settings.TryGetBinaryInfo(op, out var bi))
                 return bi.ExpressionConverter(left, right);
 
             throw new InvalidTokenException($"Unknown binary operator {op}");
         }
 
-        Expression GetUnary(char op, Expression exp) {
+        protected Expression GetUnary(char op, Expression exp) {
             if (settings.TryGetUnaryConverter(op, out var uc))
                 return uc(exp);
 

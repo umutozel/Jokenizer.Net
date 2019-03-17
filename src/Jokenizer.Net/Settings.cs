@@ -10,14 +10,14 @@ namespace Jokenizer.Net {
         private static Lazy<Settings> _default = new Lazy<Settings>();
         public static Settings Default => _default.Value;
 
-        ConcurrentDictionary<string, object> _knowns = new ConcurrentDictionary<string, object>();
+        private readonly ConcurrentDictionary<string, object> _knowns = new ConcurrentDictionary<string, object>();
         public IEnumerable<string> KnownIdentifiers => _knowns.Keys;
 
-        private ConcurrentDictionary<char, UnaryExpressionConverter> _unary
+        private readonly ConcurrentDictionary<char, UnaryExpressionConverter> _unary
             = new ConcurrentDictionary<char, UnaryExpressionConverter>();
         public IEnumerable<char> UnaryExpressions => _unary.Keys;
 
-        private ConcurrentDictionary<string, BinaryOperatorInfo> _binary
+        private readonly ConcurrentDictionary<string, BinaryOperatorInfo> _binary
             = new ConcurrentDictionary<string, BinaryOperatorInfo>();
         public IEnumerable<string> BinaryExpressions => _binary.Keys;
 
