@@ -348,8 +348,8 @@ namespace Jokenizer.Net.Tests {
             var settings = new Settings();
 
             Assert.Equal(3, settings.KnownIdentifiers.Count());
-            Assert.Equal(4, settings.UnaryExpressions.Count());
-            Assert.Equal(19, settings.BinaryExpressions.Count());
+            Assert.Equal(4, settings.UnaryOperators.Count());
+            Assert.Equal(19, settings.BinaryOperators.Count());
 
             Assert.True(settings.ContainsKnown("true"));
             Assert.True(settings.ContainsUnary('!'));

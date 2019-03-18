@@ -15,11 +15,11 @@ namespace Jokenizer.Net {
 
         private readonly ConcurrentDictionary<char, UnaryExpressionConverter> _unary
             = new ConcurrentDictionary<char, UnaryExpressionConverter>();
-        public IEnumerable<char> UnaryExpressions => _unary.Keys;
+        public IEnumerable<char> UnaryOperators => _unary.Keys;
 
         private readonly ConcurrentDictionary<string, BinaryOperatorInfo> _binary
             = new ConcurrentDictionary<string, BinaryOperatorInfo>();
-        public IEnumerable<string> BinaryExpressions => _binary.Keys;
+        public IEnumerable<string> BinaryOperators => _binary.Keys;
 
         public Settings() {
             AddKnownValue("null", null);

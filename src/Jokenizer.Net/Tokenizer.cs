@@ -374,7 +374,7 @@ namespace Jokenizer.Net {
         }
 
         protected virtual BinaryToken TryBinary(Token t) {
-            var op = settings.BinaryExpressions.FirstOrDefault(b => Get(b));
+            var op = settings.BinaryOperators.FirstOrDefault(b => Get(b));
             if (op == null) return null;
 
             var right = GetToken();
