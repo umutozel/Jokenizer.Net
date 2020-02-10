@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 
 namespace Jokenizer.Net {
-    using Tokens;
 
     public class Settings {
         private static Lazy<Settings> _default = new Lazy<Settings>();
@@ -19,7 +19,7 @@ namespace Jokenizer.Net {
 
         private readonly ConcurrentDictionary<string, BinaryOperatorInfo> _binary
             = new ConcurrentDictionary<string, BinaryOperatorInfo>();
-        public IEnumerable<string> BinaryOperators => _binary.Keys;
+        public IEnumerable<string> BinaryOperators => _binary.OrderBy(b => b.Value.Precedence).Select(b => b.Key);
 
         public Settings() {
             AddKnownValue("null", null);
@@ -73,9 +73,8 @@ namespace Jokenizer.Net {
 
         public bool TryGetUnaryConverter(char op, out UnaryExpressionConverter converter) => _unary.TryGetValue(op, out converter);
 
-        public Settings AddBinaryOperator(string op, ExpressionType type, byte precedence = 7) {
-            return AddBinaryOperator(op, DefaultBinaryExpressionConverter(type), precedence);
-        }
+        public Settings AddBinaryOperator(string op, ExpressionType type, byte precedence = 7) =>
+            AddBinaryOperator(op, DefaultBinaryExpressionConverter(type), precedence);
 
         public Settings AddBinaryOperator(string op, BinaryExpressionConverter converter, byte precedence = 7) {
             var info = new BinaryOperatorInfo(precedence, converter);
