@@ -1,15 +1,5 @@
-namespace Jokenizer.Net.Tokens {
+namespace Jokenizer.Net.Tokens;
 
-    public class VariableToken : Token, IVariableToken {
-
-        public VariableToken(string name) : base(TokenType.Variable) {
-            Name = name;
-        }
-
-        public string Name { get; }
-    }
-
-    public interface IVariableToken {
-        string Name { get; }
-    }
+public class VariableToken(string name) : Token(TokenType.Variable), IVariableToken {
+    public string Name { get; } = name;
 }

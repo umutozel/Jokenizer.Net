@@ -1,13 +1,6 @@
-namespace Jokenizer.Net.Tokens {
+namespace Jokenizer.Net.Tokens;
 
-    public class AssignToken : Token, IVariableToken {
-
-        public AssignToken(string name, Token right) : base(TokenType.Assign) {
-            Name = name;
-            Right = right;
-        }
-
-        public string Name { get; }
-        public Token Right { get; }
-    }
+public class AssignToken(string name, Token right) : Token(TokenType.Assign), IVariableToken {
+    public string Name { get; } = name;
+    public Token Right { get; } = right;
 }

@@ -1,16 +1,8 @@
 using System;
 
-namespace Jokenizer.Net.Dynamic {
+namespace Jokenizer.Net.Dynamic;
 
-    internal class DynamicProperty {
-
-        public DynamicProperty(string name, Type type) {
-            this.Name = name;
-            this.Type = type;
-        }
-
-        public string Name { get; }
-
-        public Type Type { get; }
-    }
+internal class DynamicProperty(string name, Type type) {
+    public string Name { get; } = name;
+    public Type Type { get; } = type;
 }

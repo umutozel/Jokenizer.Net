@@ -1,11 +1,5 @@
-namespace Jokenizer.Net.Tokens {
+namespace Jokenizer.Net.Tokens;
 
-    public abstract class Token {
-
-        protected Token(TokenType type) {
-            Type = type;
-        }
-        
-        public TokenType Type { get; }
-    }
+public abstract class Token(TokenType type) {
+    public TokenType Type { get; } = type;
 }

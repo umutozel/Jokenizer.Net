@@ -1,10 +1,5 @@
 using Jokenizer.Net.Tokens;
 
-namespace Jokenizer.Net.Tests.Fixture {
+namespace Jokenizer.Net.Tests.Fixture;
 
-    public class UnkownToken : Token {
-
-        public UnkownToken() : base((TokenType)42) {
-        }
-    }
-}
+public class UnknownToken() : Token((TokenType)42);

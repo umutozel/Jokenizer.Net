@@ -1,10 +1,5 @@
 using System;
 
-namespace Jokenizer.Net {
+namespace Jokenizer.Net;
 
-    public class InvalidTokenException : Exception {
-
-        public InvalidTokenException(string message): base(message) {
-        }
-    }
-}
+public class InvalidTokenException(string message) : Exception(message);

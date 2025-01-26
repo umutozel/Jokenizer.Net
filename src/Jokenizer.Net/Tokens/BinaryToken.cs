@@ -1,15 +1,7 @@
-namespace Jokenizer.Net.Tokens {
+namespace Jokenizer.Net.Tokens;
 
-    public class BinaryToken : Token {
-
-        public BinaryToken(string op, Token left, Token right) : base(TokenType.Binary) {
-            Operator = op;
-            Left = left;
-            Right = right;
-        }
-
-        public string Operator { get; }
-        public Token Left { get; }
-        public Token Right { get; }
-    }
+public class BinaryToken(string op, Token left, Token right) : Token(TokenType.Binary) {
+    public string Operator { get; } = op;
+    public Token Left { get; } = left;
+    public Token Right { get; } = right;
 }

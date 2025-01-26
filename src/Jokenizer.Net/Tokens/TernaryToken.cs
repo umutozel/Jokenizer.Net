@@ -1,15 +1,7 @@
-namespace Jokenizer.Net.Tokens {
+namespace Jokenizer.Net.Tokens;
 
-    public class TernaryToken : Token {
-
-        public TernaryToken(Token predicate, Token whenTrue, Token whenFalse) : base(TokenType.Ternary) {
-            Predicate = predicate;
-            WhenTrue = whenTrue;
-            WhenFalse = whenFalse;
-        }
-
-        public Token Predicate { get; }
-        public Token WhenTrue { get; }
-        public Token WhenFalse { get; }
-    }
+public class TernaryToken(Token predicate, Token whenTrue, Token whenFalse) : Token(TokenType.Ternary) {
+    public Token Predicate { get; } = predicate;
+    public Token WhenTrue { get; } = whenTrue;
+    public Token WhenFalse { get; } = whenFalse;
 }

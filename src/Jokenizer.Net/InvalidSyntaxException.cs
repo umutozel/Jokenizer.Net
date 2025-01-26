@@ -1,10 +1,5 @@
 using System;
 
-namespace Jokenizer.Net {
+namespace Jokenizer.Net;
 
-    public class InvalidSyntaxException : Exception {
-
-        public InvalidSyntaxException(string message): base(message) {
-        }
-    }
-}
+public class InvalidSyntaxException(string message) : Exception(message);

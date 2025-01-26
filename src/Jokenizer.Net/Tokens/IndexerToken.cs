@@ -1,13 +1,6 @@
-namespace Jokenizer.Net.Tokens {
+namespace Jokenizer.Net.Tokens;
 
-    public class IndexerToken : Token {
-
-        public IndexerToken(Token owner, Token key) : base(TokenType.Indexer) {
-            Owner = owner;
-            Key = key;
-        }
-
-        public Token Owner { get; }
-        public Token Key { get; }
-    }
+public class IndexerToken(Token owner, Token key) : Token(TokenType.Indexer) {
+    public Token Owner { get; } = owner;
+    public Token Key { get; } = key;
 }
