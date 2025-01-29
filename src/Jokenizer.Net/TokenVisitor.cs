@@ -78,14 +78,18 @@ public class TokenVisitor {
         Expression owner;
         string methodName;
 
-        if (token.Callee is MemberToken mt) {
-            owner = Visit(mt.Owner, parameters);
-            methodName = mt.Name;
-        } else if (token.Callee is VariableToken vt && parameters.Count() == 1) {
-            owner = parameters.First();
-            methodName = vt.Name;
-        } else
-            throw new InvalidTokenException("Unsupported method call");
+        switch (token.Callee) {
+            case MemberToken mt:
+                owner = Visit(mt.Owner, parameters);
+                methodName = mt.Name;
+                break;
+            case VariableToken vt when parameters.Count() == 1:
+                owner = parameters.First();
+                methodName = vt.Name;
+                break;
+            default:
+                throw new InvalidTokenException("Unsupported method call");
+        }
 
         return GetMethodCall(owner, methodName, token.Args, parameters);
     }
@@ -199,7 +203,8 @@ public class TokenVisitor {
             var arg = args[i];
             if (arg is LambdaToken lt) {
                 lambdaArgs.Add(i, lt);
-            } else {
+            }
+            else {
                 methodArgs[i] = Visit(arg, parameters);
             }
         }
@@ -224,6 +229,7 @@ public class TokenVisitor {
             method = owner.Type.GetMethods()
                           .FirstOrDefault(m => m.Name == methodName && Helper.IsSuitable(m.GetParameters(), methodArgs));
         }
+
         if (method == null) {
             isExtension = true;
             method = ExtensionMethods.Find(owner.Type, methodName, methodArgs);

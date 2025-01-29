@@ -12,8 +12,6 @@ public static class ExtensionMethods {
 
     static ExtensionMethods() => ScanTypes(typeof(Queryable), typeof(Enumerable));
 
-    public static IList<MethodInfo> ProbeAllAssemblies() =>
-        ProbeAssemblies(Assembly.GetEntryAssembly()!.GetReferencedAssemblies().Select(Assembly.Load));
     public static IList<MethodInfo> ProbeAssemblies(params Assembly[] assemblies) =>
         assemblies.SelectMany(ProbeAssembly).ToList();
     public static IList<MethodInfo> ProbeAssemblies(IEnumerable<Assembly> assemblies) =>
@@ -34,19 +32,21 @@ public static class ExtensionMethods {
     }
 
     public static MethodInfo? Find(Type forType, string name, Expression[] availableArgs) {
-        var args = forType.IsConstructedGenericType ? forType.GetGenericArguments() : [];
+        var genericArgs = forType.IsConstructedGenericType ? forType.GetGenericArguments() : [];
 
         foreach (var extension in _extensions.Where(e => e.Name == name)) {
             var m = extension;
             if (m.IsGenericMethodDefinition) {
-                if (m.GetGenericArguments().Length != args.Length) continue;
+                if (m.GetGenericArguments().Length != genericArgs.Length) continue;
 
-                m = m.MakeGenericMethod(args);
+                m = m.MakeGenericMethod(genericArgs);
             }
 
-            var prms = m.GetParameters();
-            if (!prms[0].ParameterType.IsAssignableFrom(forType)) continue;
-            if (!Helper.IsSuitable(prms.Skip(1).ToArray(), availableArgs)) continue;
+            var allPrms = m.GetParameters();
+            if (!allPrms[0].ParameterType.IsAssignableFrom(forType)) continue;
+            var prms = allPrms.Skip(1).ToArray();
+            if (prms.Any(p => p.ParameterType.GetGenericTypeDefinition() == typeof(IComparer<>))) continue;
+            if (!Helper.IsSuitable(prms, availableArgs)) continue;
                 
             return m;
         }
