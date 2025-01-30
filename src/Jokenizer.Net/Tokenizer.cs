@@ -75,6 +75,7 @@ public class Tokenizer {
 
     protected virtual LiteralToken? TryNumber() {
         var n = GetNumber();
+        if (n == "") return null;
 
         var isFloat = false;
         if (Get(_separator)) {
@@ -82,8 +83,6 @@ public class Tokenizer {
             n += GetNumber();
             isFloat = true;
         }
-
-        if (n == "") return null;
 
         if (IsVariableStart())
             throw new InvalidSyntaxException($"Unexpected character (${Ch}) at index ${Idx}");

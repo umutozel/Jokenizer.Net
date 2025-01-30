@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Dynamic;
+using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading;
 using Xunit;
 
 namespace Jokenizer.Net.Tests;
@@ -12,7 +14,8 @@ using Tokens;
 
 public class EvaluatorTests {
 
-    static EvaluatorTests() {
+    public EvaluatorTests() {
+        Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
         ExtensionMethods.ProbeAssemblies(typeof(Extensions).Assembly);
     }
 
@@ -182,17 +185,17 @@ public class EvaluatorTests {
 
     public class Order {
         public int Id { get; set; }
-        public string OrderNo { get; set; }
+        public string? OrderNo { get; set; }
         public DateTime OrderDate { get; set; }
         public double? Price;
-        public IList<OrderLine> Lines { get; set; }
+        public IList<OrderLine>? Lines { get; set; }
     }
 
     public class OrderLine {
         public int Id { get; set; }
-        public Product Product;
+        public Product? Product;
         public int ProductId { get; set; }
-        public Order Order { get; set; }
+        public Order? Order { get; set; }
         public int OrderId { get; set; }
         public int? Count { get; set; }
         public double? UnitPrice { get; set; }
@@ -200,17 +203,12 @@ public class EvaluatorTests {
 
     public class Product {
         public int Id { get; set; }
-        public string Name { get; set; }
-        public Company Supplier { get; set; }
+        public string? Name { get; set; }
+        public Company? Supplier { get; set; }
     }
 
     [Fact]
     public void ShouldEvaluateBinary() {
-        var outer = typeof(Order);
-        var inner = typeof(IEnumerable<OrderLine>);
-        var resultLambda = Evaluator.ToLambda("(o, l) => o.Id + l.Max(x => x.Id)", [outer, inner]);
-
-
         var v1 = Evaluator.ToFunc<bool>("@0 > @1", 4, 2);
         Assert.True(v1());
 

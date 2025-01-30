@@ -1,5 +1,7 @@
 using System;
+using System.Globalization;
 using System.Linq;
+using System.Threading;
 using Xunit;
 
 namespace Jokenizer.Net.Tests;
@@ -7,6 +9,10 @@ namespace Jokenizer.Net.Tests;
 using Tokens;
 
 public class TokenizerTests {
+    
+    public TokenizerTests() {
+        Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+    }
 
     [Fact]
     public void ShouldThrowForNullOrEmpty() {
