@@ -227,7 +227,7 @@ public class TokenVisitor {
             }
         } else {
             method = owner.Type.GetMethods()
-                          .FirstOrDefault(m => m.Name == methodName && Helper.IsSuitable(m.GetParameters(), methodArgs));
+                .FirstOrDefault(m => m.Name == methodName && Helper.IsSuitable(m.GetParameters(), methodArgs));
         }
 
         if (method == null) {

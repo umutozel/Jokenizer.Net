@@ -45,7 +45,6 @@ public static class ExtensionMethods {
             var allPrms = m.GetParameters();
             if (!allPrms[0].ParameterType.IsAssignableFrom(forType)) continue;
             var prms = allPrms.Skip(1).ToArray();
-            if (prms.Any(p => p.ParameterType.GetGenericTypeDefinition() == typeof(IComparer<>))) continue;
             if (!Helper.IsSuitable(prms, availableArgs)) continue;
                 
             return m;

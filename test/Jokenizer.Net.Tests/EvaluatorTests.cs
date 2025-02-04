@@ -183,30 +183,6 @@ public class EvaluatorTests {
         Assert.Equal(21, v2());
     }
 
-    public class Order {
-        public int Id { get; set; }
-        public string? OrderNo { get; set; }
-        public DateTime OrderDate { get; set; }
-        public double? Price;
-        public IList<OrderLine>? Lines { get; set; }
-    }
-
-    public class OrderLine {
-        public int Id { get; set; }
-        public Product? Product;
-        public int ProductId { get; set; }
-        public Order? Order { get; set; }
-        public int OrderId { get; set; }
-        public int? Count { get; set; }
-        public double? UnitPrice { get; set; }
-    }
-
-    public class Product {
-        public int Id { get; set; }
-        public string? Name { get; set; }
-        public Company? Supplier { get; set; }
-    }
-
     [Fact]
     public void ShouldEvaluateBinary() {
         var v1 = Evaluator.ToFunc<bool>("@0 > @1", 4, 2);
