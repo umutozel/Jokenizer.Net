@@ -212,7 +212,7 @@ public class TokenVisitor {
         MethodInfo? method;
         var isExtension = false;
         if (!lambdaArgs.Any()) {
-            method = owner.Type.GetMethod(methodName, methodArgs.Select(m => m.Type).ToArray());
+            method = owner.Type.GetMethod(methodName, methodArgs.Select(m => m!.Type).ToArray());
         } else {
             method = owner.Type.GetMethods()
                 .FirstOrDefault(m => m.Name == methodName && Helper.IsSuitable(m.GetParameters(), methodArgs));
