@@ -5,7 +5,7 @@ using System.Reflection;
 
 namespace Jokenizer.Net {
 
-    public static class Helper {
+    internal static class Helper {
         private static readonly HashSet<(Type, Type)> _implicitNumericConversions = [
             (typeof(sbyte), typeof(short)), (typeof(sbyte), typeof(int)), (typeof(sbyte), typeof(long)),
             (typeof(sbyte), typeof(float)), (typeof(sbyte), typeof(double)), (typeof(sbyte), typeof(decimal)),
@@ -34,7 +34,7 @@ namespace Jokenizer.Net {
             (typeof(float), typeof(double))
         ];
 
-        public static bool IsSuitable(ParameterInfo[] prms, Expression?[] args) {
+        internal static bool IsSuitable(ParameterInfo[] prms, Expression?[] args) {
             if (prms.Length != args.Length) return false;
 
             for (var i = 0; i < prms.Length; i++) {

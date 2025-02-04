@@ -197,7 +197,7 @@ public class TokenVisitor {
         if (methodName == "GetType")
             throw new InvalidOperationException("GetType cannot be called");
 
-        var methodArgs = new Expression[args.Length];
+        var methodArgs = new Expression?[args.Length];
         var lambdaArgs = new Dictionary<int, LambdaToken>();
         for (var i = 0; i < args.Length; i++) {
             var arg = args[i];
@@ -210,21 +210,9 @@ public class TokenVisitor {
         }
 
         MethodInfo? method;
-        ParameterInfo[]? methodPrms = null;
         var isExtension = false;
         if (!lambdaArgs.Any()) {
             method = owner.Type.GetMethod(methodName, methodArgs.Select(m => m.Type).ToArray());
-            if (method != null) {
-                methodPrms = method.GetParameters();
-                // we might need to cast to target types
-                for (var i = 0; i < methodArgs.Length; i++) {
-                    var prm = methodPrms[i];
-                    var arg = methodArgs[i];
-                    if (arg.Type != prm.ParameterType) {
-                        methodArgs[i] = Expression.Convert(arg, prm.ParameterType);
-                    }
-                }
-            }
         } else {
             method = owner.Type.GetMethods()
                 .FirstOrDefault(m => m.Name == methodName && Helper.IsSuitable(m.GetParameters(), methodArgs));
@@ -238,7 +226,15 @@ public class TokenVisitor {
         if (method == null)
             throw new InvalidTokenException($"Could not find instance or extension method for {methodName} for {owner.Type}");
 
-        methodPrms ??= method.GetParameters();
+        var methodPrms = method.GetParameters();
+        // we might need to cast to target types
+        for (var i = 0; i < methodArgs.Length; i++) {
+            var prm = methodPrms[i];
+            var arg = methodArgs[i];
+            if (arg != null && arg.Type != prm.ParameterType) {
+                methodArgs[i] = Expression.Convert(arg, prm.ParameterType);
+            }
+        }
 
         foreach (var lambdaArg in lambdaArgs) {
             var g = methodPrms[lambdaArg.Key].ParameterType.GetGenericArguments();

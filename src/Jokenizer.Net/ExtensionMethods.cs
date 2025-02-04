@@ -31,7 +31,7 @@ public static class ExtensionMethods {
         return methods;
     }
 
-    public static MethodInfo? Find(Type forType, string name, Expression[] availableArgs) {
+    internal static MethodInfo? Find(Type forType, string name, Expression?[] args) {
         var genericArgs = forType.IsConstructedGenericType ? forType.GetGenericArguments() : [];
 
         foreach (var extension in _extensions.Where(e => e.Name == name)) {
@@ -44,8 +44,9 @@ public static class ExtensionMethods {
 
             var allPrms = m.GetParameters();
             if (!allPrms[0].ParameterType.IsAssignableFrom(forType)) continue;
+
             var prms = allPrms.Skip(1).ToArray();
-            if (!Helper.IsSuitable(prms, availableArgs)) continue;
+            if (!Helper.IsSuitable(prms, args)) continue;
                 
             return m;
         }
