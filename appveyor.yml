@@ -1,3 +1,6 @@
+init:
+  - ps: [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+
 only_commits:
   files: src
 
