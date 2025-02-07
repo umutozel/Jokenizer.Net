@@ -19,7 +19,7 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
       DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
       NUGET_XMLDOC_MODE: skip
-      COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }} # Codecov token'ınızı burada kullanın
 
     steps:
       - name: Checkout repository
@@ -41,15 +41,10 @@ jobs:
           dotnet tool install --global coverlet.console
           coverlet test/Jokenizer.Net.Tests/bin/Release/net9.0/Jokenizer.Net.Tests.dll --target "dotnet" --targetargs "test test/Jokenizer.Net.Tests/Jokenizer.Net.Tests.csproj --no-build -c Release" --format opencover --output opencoverCoverage.xml
 
-      - name: Setup .NET 3.1 for Coveralls
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '3.1.x'
-
-      - name: Upload coverage to Coveralls
+      - name: Upload coverage to Codecov
         run: |
-          dotnet tool install --global coveralls.net --version 2.0.0
-          csmacnz.Coveralls --opencover opencoverCoverage.xml --repoToken "${{ secrets.COVERALLS_REPO_TOKEN }}" --commitId "${{ github.sha }}" --commitBranch "${{ github.ref_name }}" --commitAuthor "${{ github.actor }}" --commitMessage "${{ github.event.head_commit.message }}" --serviceName github
+          curl -s https://codecov.io/bash > codecov
+          bash codecov -f opencoverCoverage.xml -t ${{ secrets.CODECOV_TOKEN }}
 
       - name: Pack NuGet package
         run: dotnet pack src/Jokenizer.Net/Jokenizer.Net.csproj --configuration Release --output ./packages
