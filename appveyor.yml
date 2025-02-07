@@ -1,13 +1,18 @@
+version: 1.1.{build}
+
+image: Visual Studio 2022
+
+environment:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  NUGET_XMLDOC_MODE: skip
+
 init:
   - ps: |
       [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
 
 only_commits:
   files: src
-
-version: 1.1.{build}
-
-image: Visual Studio 2022
 
 configuration: Release
 
@@ -17,24 +22,24 @@ assembly_info:
   assembly_version: '{version}'
   assembly_file_version: '{version}'
   assembly_informational_version: '{version}'
-  
+
 build:
   project: .\Jokenizer.Net.sln
   verbosity: minimal
-  
+
 before_build:
   - dotnet restore
 
 after_build:
-- dotnet pack src\Jokenizer.Net\Jokenizer.Net.csproj -c Release /p:Version=%appveyor_build_version%
-- appveyor PushArtifact src\Jokenizer.Net\bin\Release\Jokenizer.Net.%appveyor_build_version%.nupkg
+  - dotnet pack src\Jokenizer.Net\Jokenizer.Net.csproj -c Release /p:Version=%appveyor_build_version%
+  - appveyor PushArtifact src\Jokenizer.Net\bin\Release\Jokenizer.Net.%appveyor_build_version%.nupkg
 
 test_script:
-- dotnet test -c %CONFIGURATION% test\Jokenizer.Net.Tests\Jokenizer.Net.Tests.csproj
-- nuget install OpenCover -Version 4.6.519 -OutputDirectory tools
-- .\tools\OpenCover.4.6.519\tools\OpenCover.Console.exe -target:"c:\Program Files\dotnet\dotnet.exe" -targetargs:"test -c %CONFIGURATION% test/Jokenizer.Net.Tests/Jokenizer.Net.Tests.csproj" -output:opencoverCoverage.xml -oldStyle -register:user
-- nuget install coveralls.net -Version 0.7.0 -OutputDirectory tools
-- .\tools\coveralls.net.0.7.0\tools\csmacnz.Coveralls.exe --opencover -i opencoverCoverage.xml --repoToken "%COVERALLS_REPO_TOKEN%" --useRelativePaths --commitId "%APPVEYOR_REPO_COMMIT%" --commitBranch "%APPVEYOR_REPO_BRANCH%" --commitAuthor "%APPVEYOR_REPO_COMMIT_AUTHOR%" --commitEmail "%APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL%" --commitMessage "%APPVEYOR_REPO_COMMIT_MESSAGE%" --jobId "%APPVEYOR_BUILD_NUMBER%" --serviceName appveyor
+  - dotnet test -c %CONFIGURATION% test\Jokenizer.Net.Tests\Jokenizer.Net.Tests.csproj
+  - dotnet tool install --global coverlet.console
+  - coverlet test\Jokenizer.Net.Tests\bin\%CONFIGURATION%\net6.0\Jokenizer.Net.Tests.dll --target "dotnet" --targetargs "test test\Jokenizer.Net.Tests\Jokenizer.Net.Tests.csproj --no-build -c %CONFIGURATION%" --format opencover --output opencoverCoverage.xml
+  - dotnet tool install --global coveralls.net --version 2.0.0
+  - coveralls.net --opencover opencoverCoverage.xml --repoToken "%COVERALLS_REPO_TOKEN%" --commitId "%APPVEYOR_REPO_COMMIT%" --commitBranch "%APPVEYOR_REPO_BRANCH%" --commitAuthor "%APPVEYOR_REPO_COMMIT_AUTHOR%" --commitEmail "%APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL%" --commitMessage "%APPVEYOR_REPO_COMMIT_MESSAGE%" --jobId "%APPVEYOR_BUILD_NUMBER%" --serviceName appveyor
 
 deploy:
   provider: NuGet
