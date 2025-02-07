@@ -25,7 +25,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET 9.0
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0'
@@ -40,6 +40,11 @@ jobs:
         run: |
           dotnet tool install --global coverlet.console
           coverlet test/Jokenizer.Net.Tests/bin/Release/net9.0/Jokenizer.Net.Tests.dll --target "dotnet" --targetargs "test test/Jokenizer.Net.Tests/Jokenizer.Net.Tests.csproj --no-build -c Release" --format opencover --output opencoverCoverage.xml
+
+      - name: Setup .NET 3.1 for Coveralls
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '3.1.x'
 
       - name: Upload coverage to Coveralls
         run: |
