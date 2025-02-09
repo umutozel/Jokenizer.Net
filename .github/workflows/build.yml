@@ -48,21 +48,26 @@ jobs:
         run: |
           $VERSION = "${{ env.VERSION }}"
           echo "Updating .csproj version to: $VERSION"
-          
+
           [xml]$xml = Get-Content src\Jokenizer.Net\Jokenizer.Net.csproj
-          $versionNode = $xml.Project.PropertyGroup.Version
+          $propertyGroup = $xml.Project.PropertyGroup | Where-Object { $_.Version }
           
-          if ($versionNode) {
-            $versionNode.InnerText = "$VERSION"
+          if ($propertyGroup) {
+            echo "Existing <Version> found. Updating..."
+            $propertyGroup.Version = $VERSION
           } else {
-            $propertyGroup = $xml.CreateElement("PropertyGroup", $xml.DocumentElement.NamespaceURI)
-            $versionElement = $xml.CreateElement("Version", $xml.DocumentElement.NamespaceURI)
-            $versionElement.InnerText = "$VERSION"
-            $propertyGroup.AppendChild($versionElement) | Out-Null
-            $xml.Project.AppendChild($propertyGroup) | Out-Null
+            echo "No existing <Version> tag. Creating new one..."
+            $newPropertyGroup = $xml.CreateElement("PropertyGroup")
+            $versionElement = $xml.CreateElement("Version")
+            $versionElement.InnerText = $VERSION
+            $newPropertyGroup.AppendChild($versionElement) | Out-Null
+            $xml.Project.AppendChild($newPropertyGroup) | Out-Null
           }
-          
-          $xml.Save("src\Jokenizer.Net\Jokenizer.Net.csproj")
+
+          $xml.Save("src/Jokenizer.Net/Jokenizer.Net.csproj")
+
+          echo "Updated .csproj version:"
+          Get-Content src/Jokenizer.Net/Jokenizer.Net.csproj
         shell: pwsh
 
       - name: Restore dependencies
