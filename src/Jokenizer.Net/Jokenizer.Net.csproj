@@ -6,7 +6,7 @@
     <Authors>Umut Özel</Authors>
     <Description>C# Expression parser and evaluator, inspired from jokenizer project.</Description>
     <Copyright>Copyright (c) 2018</Copyright>
-    <PackageLicenseUrl>https://github.com/umutozel/Jokenizer.Net/blob/main/LICENSE</PackageLicenseUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/umutozel/Jokenizer.Net</PackageProjectUrl>
     <PackageIconUrl>https://image.ibb.co/njzZCK/Jokenizer_Net.png</PackageIconUrl>
     <PackageTags>csharp expression parser tokenizer</PackageTags>
