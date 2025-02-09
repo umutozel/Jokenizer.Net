@@ -55,6 +55,7 @@ jobs:
 
       - name: Verify GitVersion Installation
         if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
         run: dotnet-gitversion --version
 
       - name: Determine version
