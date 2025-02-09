@@ -46,7 +46,9 @@ jobs:
       - name: Set assembly version
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          (Get-Content src/Jokenizer.Net/Jokenizer.Net.csproj) -replace '<Version>.*</Version>', "<Version>$VERSION</Version>" | Set-Content src/Jokenizer.Net/Jokenizer.Net.csproj
+          [xml]$csproj = Get-Content src/Jokenizer.Net/Jokenizer.Net.csproj
+          $csproj.Project.PropertyGroup.Version = $VERSION
+          $csproj.Save("src/Jokenizer.Net/Jokenizer.Net.csproj")
           Get-Content src/Jokenizer.Net/Jokenizer.Net.csproj | Select-String "<Version>"
 
       - name: Restore dependencies
