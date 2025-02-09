@@ -4,6 +4,7 @@ C# Expression parser, inspired from jokenizer project.
 [![Build and Test](https://github.com/umutozel/Jokenizer.Net/actions/workflows/build.yml/badge.svg)](https://github.com/umutozel/Jokenizer.Net/actions/workflows/build.yml)
 [![codecov](https://codecov.io/gh/umutozel/Jokenizer.Net/graph/badge.svg?token=FzxwO5q0gr)](https://codecov.io/gh/umutozel/Jokenizer.Net)
 [![NuGet Badge](https://img.shields.io/nuget/v/Jokenizer.Net.svg)](https://www.nuget.org/packages/Jokenizer.Net/)
+![NuGet Downloads](https://img.shields.io/nuget/dt/Jokenizer.Net.svg)
 [![GitHub issues](https://img.shields.io/github/issues/umutozel/Jokenizer.Net.svg)](https://github.com/umutozel/Jokenizer.Net/issues)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/umutozel/Jokenizer.Net/master/LICENSE)
 
