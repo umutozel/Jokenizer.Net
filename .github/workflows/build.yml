@@ -51,18 +51,12 @@ jobs:
           curl -s https://codecov.io/bash > codecov
           bash codecov -f opencoverCoverage.xml -t ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Install GitVersion
+      - name: Set version from tag
         if: startsWith(github.ref, 'refs/tags/v')
-        run: dotnet tool install --global GitVersion.Tool --version 5.12.0
-
-      - name: Verify GitVersion Installation
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: dotnet tool list --global
-
-      - name: Determine version
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
-        run: echo "VERSION=$(dotnet-gitversion /showvariable SemVer)" >> $GITHUB_ENV
+        run: |
+          VERSION=$(echo $GITHUB_REF | sed 's/refs\/tags\/v//')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Version set to: $VERSION"
 
       - name: Pack NuGet package
         if: startsWith(github.ref, 'refs/tags/v')
