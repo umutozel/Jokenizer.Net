@@ -53,9 +53,16 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: dotnet tool install --global GitVersion.Tool
 
+      - name: Verify GitVersion Installation
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: dotnet-gitversion --version
+
       - name: Determine version
         if: startsWith(github.ref, 'refs/tags/v')
-        run: echo "VERSION=$(dotnet-gitversion /showvariable SemVer)" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          dotnet-gitversion /diag
+          echo "VERSION=$(dotnet-gitversion /showvariable SemVer)" >> $GITHUB_ENV
 
       - name: Pack NuGet package
         if: startsWith(github.ref, 'refs/tags/v')
