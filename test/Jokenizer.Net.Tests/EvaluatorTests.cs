@@ -149,8 +149,11 @@ public class EvaluatorTests {
 
     [Fact]
     public void ShouldEvaluateLambda() {
-        var v = Evaluator.ToFunc<int, int, bool>("(a, b) => a < b");
-        Assert.True(v(1, 2));
+        var v1 = Evaluator.ToFunc<int, int, bool>("(a, b) => a < b");
+        Assert.True(v1(1, 2));
+
+        var v2 = Evaluator.ToFunc<int, double, bool>("(a, b) => a < b");
+        Assert.True(v2(1, 1.5));
 
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<int, int, bool>("4 < (a, b) => a < b"));
     }

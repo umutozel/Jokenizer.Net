@@ -99,9 +99,12 @@ public class Settings {
     private static void FixTypes(ref Expression left, ref Expression right) {
         if (left.Type == right.Type) return;
 
+        FixNullable(left, ref right);
+        FixNullable(right, ref left);
+
         var ok =
-            TryFixNullable(left, ref right) ||
-            TryFixNullable(right, ref left) ||
+            TryFixNumeric(left, ref right) ||
+            TryFixNumeric(right, ref left) ||
             TryFixForGuid(left, ref right) ||
             TryFixForGuid(right, ref left) ||
             TryFixForDateTime(left, ref right) ||
@@ -113,19 +116,24 @@ public class Settings {
         }
     }
 
-    private static bool TryFixNullable(Expression e1, ref Expression e2) {
-        if (!e2.Type.IsConstructedGenericType
-            || e2.Type.GetGenericTypeDefinition() != typeof(Nullable<>)
-            || e2.Type.GetGenericArguments()[0] != e1.Type)
-            return false;
+    private static void FixNullable(Expression e1, ref Expression e2) {
+        if (e2.Type.IsConstructedGenericType
+            && e2.Type.GetGenericTypeDefinition() == typeof(Nullable<>)
+            && e2.Type.GetGenericArguments()[0] == e1.Type) {
+            e2 = Expression.Convert(e2, e2.Type);
+        }
+    }
 
-        e2 = Expression.Convert(e2, e1.Type);
+    private static bool TryFixNumeric(Expression left, ref Expression right) {
+        var t1 = left.Type;
+        if (t1 != typeof(float) && t1 != typeof(double) && t1 != typeof(decimal)) return false;
 
+        right = Expression.Convert(right, t1);
         return true;
     }
 
     private static bool TryFixForGuid(Expression e1, ref Expression e2) {
-        if ((e1.Type != typeof(Guid?) && e1.Type != typeof(Guid)) || e2.Type != typeof(string) || !(e2 is ConstantExpression ce2))
+        if ((e1.Type != typeof(Guid?) && e1.Type != typeof(Guid)) || e2.Type != typeof(string) || e2 is not ConstantExpression ce2)
             return false;
 
         var guidValue = Guid.Parse(ce2.Value.ToString());
@@ -149,6 +157,9 @@ public class Settings {
 
         return true;
     }
+
+    private static bool IsFloatingPoint(Type type) =>
+        type == typeof(float) || type == typeof(double) || type == typeof(decimal);
 }
 
 public delegate Expression UnaryExpressionConverter(Expression exp);
