@@ -47,7 +47,7 @@ public class EvaluatorTests {
     }
 
     [Fact]
-    public void ShouldEvaluteToKnownVariable() {
+    public void ShouldEvaluateToKnownVariable() {
         var v1 = Evaluator.ToFunc<bool>("true");
         Assert.True(v1());
 
