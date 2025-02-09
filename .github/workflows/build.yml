@@ -35,6 +35,31 @@ jobs:
         with:
           dotnet-version: '9.0'
 
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          $VERSION = $env:GITHUB_REF -replace 'refs/tags/v', ''
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Version set to: $VERSION"
+        shell: pwsh
+
+      - name: Update .csproj version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          [xml]$xml = Get-Content src\Jokenizer.Net\Jokenizer.Net.csproj
+          $versionNode = $xml.Project.PropertyGroup.Version
+          if ($versionNode) {
+            $versionNode.'#text' = "${{ env.VERSION }}"
+          } else {
+            $propertyGroup = $xml.CreateElement("PropertyGroup", $xml.DocumentElement.NamespaceURI)
+            $versionElement = $xml.CreateElement("Version", $xml.DocumentElement.NamespaceURI)
+            $versionElement.InnerText = "${{ env.VERSION }}"
+            $propertyGroup.AppendChild($versionElement) | Out-Null
+            $xml.Project.AppendChild($propertyGroup) | Out-Null
+          }
+          $xml.Save("src\Jokenizer.Net\Jokenizer.Net.csproj")
+        shell: pwsh
+        
       - name: Restore dependencies
         run: dotnet restore
 
@@ -50,14 +75,6 @@ jobs:
         run: |
           curl -s https://codecov.io/bash > codecov
           bash codecov -f opencoverCoverage.xml -t ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Set version from tag
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          $VERSION = $env:GITHUB_REF -replace 'refs/tags/v', ''
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Version set to: $VERSION"
-        shell: pwsh
 
       - name: Pack NuGet package
         if: startsWith(github.ref, 'refs/tags/v')
