@@ -264,8 +264,7 @@ public class EvaluatorTests {
     [Fact]
     public void ShouldThrowForInvalidToken() {
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<string>(new AssignToken("Name", new LiteralToken("Netflix"))));
-        Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<string>(new GroupToken([new LiteralToken("Netflix"), new LiteralToken("Google")
-        ])));
+        Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<string>(new GroupToken([new LiteralToken("Netflix"), new LiteralToken("Google")])));
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<string>("a < b => b*2"));
     }
 
@@ -361,5 +360,20 @@ public class EvaluatorTests {
         Assert.True(settings.ContainsKnown("true"));
         Assert.True(settings.ContainsUnary('!'));
         Assert.True(settings.ContainsBinary("%"));
+    }
+
+    [Fact]
+    public void ShouldHandleEnumerableParameter() {
+        var source = new[] { 1, 2, 3, 4, 5 };
+        var sample = new[] { 2, 4 };
+
+        var f = Evaluator.ToFunc<IEnumerable<int>>(
+            "source.Where(x => @0.Contains(x))",
+            new Dictionary<string, object?> { { "source", source } },
+            sample
+        );
+
+        var result = f();
+        Assert.Equal([2, 4], result);
     }
 }

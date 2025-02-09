@@ -218,15 +218,19 @@ public class TokenVisitor {
                 .FirstOrDefault(m => m.Name == methodName && Helper.IsSuitable(m.GetParameters(), methodArgs));
         }
 
+        ParameterInfo[] methodPrms;
         if (method == null) {
             isExtension = true;
-            method = ExtensionMethods.Find(owner.Type, methodName, methodArgs);
+            var extResult = ExtensionMethods.Find(owner.Type, methodName, methodArgs);
+            if (extResult == null)
+                throw new InvalidTokenException($"Could not find instance or extension method for {methodName} for {owner.Type}");
+
+            (method, methodPrms) = extResult.Value;
+        }
+        else {
+            methodPrms = method.GetParameters();
         }
 
-        if (method == null)
-            throw new InvalidTokenException($"Could not find instance or extension method for {methodName} for {owner.Type}");
-
-        var methodPrms = method.GetParameters();
         // we might need to cast to target types
         for (var i = 0; i < methodArgs.Length; i++) {
             var prm = methodPrms[i];

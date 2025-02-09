@@ -31,24 +31,40 @@ public static class ExtensionMethods {
         return methods;
     }
 
-    internal static MethodInfo? Find(Type forType, string name, Expression?[] args) {
+    internal static (MethodInfo, ParameterInfo[])? Find(Type forType, string name, Expression?[] args) {
         var genericArgs = forType.IsConstructedGenericType ? forType.GetGenericArguments() : [];
 
         foreach (var extension in _extensions.Where(e => e.Name == name)) {
             var m = extension;
+
+            var prmType = m.GetParameters()[0].ParameterType;
+            if (prmType.IsConstructedGenericType) {
+                prmType = prmType.GetGenericTypeDefinition();
+            }
+            if (!prmType.IsAssignableFrom(forType)) {
+                if (!prmType.IsGenericType) continue;
+
+                if (!forType.IsConstructedGenericType || forType.GetGenericTypeDefinition() != prmType) {
+                    var interfaces = forType.GetInterfaces();
+                    var forGeneric = interfaces
+                        .FirstOrDefault(i => i == prmType || (i.IsGenericType && i.GetGenericTypeDefinition() == prmType));
+
+                    if (forGeneric == null) continue;
+
+                    genericArgs = forGeneric.GetGenericArguments();
+                }
+            }
+
             if (m.IsGenericMethodDefinition) {
                 if (m.GetGenericArguments().Length != genericArgs.Length) continue;
 
                 m = m.MakeGenericMethod(genericArgs);
             }
 
-            var allPrms = m.GetParameters();
-            if (!allPrms[0].ParameterType.IsAssignableFrom(forType)) continue;
-
-            var prms = allPrms.Skip(1).ToArray();
+            var prms = m.GetParameters().Skip(1).ToArray();
             if (!Helper.IsSuitable(prms, args)) continue;
                 
-            return m;
+            return (m, prms);
         }
 
         return null;
