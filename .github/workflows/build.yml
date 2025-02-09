@@ -7,6 +7,9 @@ on:
     paths:
       - 'src/**'
       - 'test/**'
+    tags:
+      - 'v*'
+
   pull_request:
     branches:
       - main
@@ -47,12 +50,15 @@ jobs:
           bash codecov -f opencoverCoverage.xml -t ${{ secrets.CODECOV_TOKEN }}
 
       - name: Install GitVersion
+        if: startsWith(github.ref, 'refs/tags/v')
         run: dotnet tool install --global GitVersion.Tool
 
       - name: Determine version
+        if: startsWith(github.ref, 'refs/tags/v')
         run: echo "VERSION=$(gitversion /showvariable SemVer)" >> $GITHUB_ENV
 
       - name: Pack NuGet package
+        if: startsWith(github.ref, 'refs/tags/v')
         run: dotnet pack src/Jokenizer.Net/Jokenizer.Net.csproj --configuration Release --output ./packages --version $VERSION
 
       - name: Publish NuGet package (on tag push)
