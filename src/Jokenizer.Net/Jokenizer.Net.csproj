@@ -9,7 +9,7 @@
     <Copyright>Copyright (c) 2018</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/umutozel/Jokenizer.Net</PackageProjectUrl>
-    <PackageIcon>..\..\icon.png</PackageIcon>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageTags>csharp expression parser tokenizer</PackageTags>
     <RepositoryUrl>https://github.com/umutozel/Jokenizer.Net</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
