@@ -35,18 +35,11 @@ jobs:
         with:
           dotnet-version: '9.0'
 
-      - name: Set version from tag
+      - name: Update .csproj version
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           $VERSION = $env:GITHUB_REF -replace 'refs/tags/v', ''
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Version set to: $VERSION"
-        shell: pwsh
-
-      - name: Update .csproj version
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          $VERSION = "${{ env.VERSION }}"
           echo "Updating .csproj version to: $VERSION"
 
           [xml]$xml = Get-Content src\Jokenizer.Net\Jokenizer.Net.csproj
