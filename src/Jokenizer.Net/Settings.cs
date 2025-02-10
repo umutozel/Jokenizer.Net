@@ -117,10 +117,11 @@ public class Settings {
     }
 
     private static void FixNullable(Expression e1, ref Expression e2) {
-        if (e2.Type.IsConstructedGenericType
-            && e2.Type.GetGenericTypeDefinition() == typeof(Nullable<>)
-            && e2.Type.GetGenericArguments()[0] == e1.Type) {
-            e2 = Expression.Convert(e2, e2.Type);
+        if (e1 is ConstantExpression { Value: null } ||
+            (e1.Type.IsConstructedGenericType
+             && e1.Type.GetGenericTypeDefinition() == typeof(Nullable<>)
+             && e1.Type.GetGenericArguments()[0] == e2.Type)) {
+            e2 = Expression.Convert(e2, e1.Type);
         }
     }
 

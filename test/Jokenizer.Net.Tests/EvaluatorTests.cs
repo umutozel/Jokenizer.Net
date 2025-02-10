@@ -376,4 +376,16 @@ public class EvaluatorTests {
         var result = f();
         Assert.Equal([2, 4], result);
     }
+
+    [Fact]
+    public void ShouldHandleMethodChain() {
+        var data = new Person { Name = "proof search 1 me" };
+
+        var v = Evaluator.ToFunc<bool>(
+            "i.Age != null && i.Age.ToString().Contains(searchText)",
+            new Dictionary<string, object?> {{ "searchText", "1" }, { "i", data }}
+        );
+
+        Assert.False(v());
+    }
 }
