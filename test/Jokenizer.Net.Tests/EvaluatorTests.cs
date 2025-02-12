@@ -217,6 +217,22 @@ public class EvaluatorTests {
     }
 
     [Fact]
+    public void ShouldEvaluateBinaryWithIgnoreCase() {
+        var ignoreCaseSettings = new Settings { IgnoreMemberCase = true };
+
+        var v1 = Evaluator.ToFunc<Company, bool>("c => c.posTalCoDE < 4", ignoreCaseSettings);
+        Assert.True(v1(new Company { PostalCode = 3 }));
+
+        var id = Guid.NewGuid();
+        var v2 = Evaluator.ToFunc<Company, bool>($"c => c.iD == \"{id}\"", ignoreCaseSettings);
+        Assert.True(v2(new Company { Id = id }));
+
+        var ownerId = Guid.NewGuid();
+        var v3 = Evaluator.ToFunc<Company, bool>($"c => c.OWNERID == \"{ownerId}\"", ignoreCaseSettings);
+        Assert.True(v3(new Company { OwnerId = ownerId }));
+    }
+
+    [Fact]
     public void ShouldEvaluateCustomBinary() {
         var containsMethod = typeof(Enumerable).GetMethods()
                                                .First(m => m.Name == "Contains" && m.GetParameters().Length == 2)

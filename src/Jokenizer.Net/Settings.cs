@@ -10,6 +10,7 @@ public class Settings {
     private static readonly Lazy<Settings> _default = new();
     public static Settings Default => _default.Value;
 
+    public bool IgnoreMemberCase { get; set; } = false;
     private readonly ConcurrentDictionary<string, object?> _knowns = new();
     public IEnumerable<string> KnownIdentifiers => _knowns.Keys;
 

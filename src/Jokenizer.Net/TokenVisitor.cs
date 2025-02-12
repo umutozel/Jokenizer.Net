@@ -137,11 +137,15 @@ public class TokenVisitor {
     }
 
     protected Expression GetMember(Expression owner, string name, ParameterExpression[] parameters) {
-        var prop = owner.Type.GetProperty(name);
+        var prop = Settings.IgnoreMemberCase
+            ? owner.Type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
+            : owner.Type.GetProperty(name);
         if (prop != null)
             return Expression.Property(owner, prop);
 
-        var field = owner.Type.GetField(name);
+        var field = Settings.IgnoreMemberCase
+         ? owner.Type.GetField(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
+         : owner.Type.GetField(name);
         return field != null ? Expression.Field(owner, field) : CreateIndexer(owner, Expression.Constant(name));
     }
 
