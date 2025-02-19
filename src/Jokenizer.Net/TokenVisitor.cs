@@ -4,6 +4,7 @@ using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Jokenizer.Net;
 
@@ -120,22 +121,25 @@ public class TokenVisitor {
         return Expression.MakeIndex(owner, indexer, [key]);
     }
 
-    protected virtual LambdaExpression VisitLambda(LambdaToken token, IEnumerable<Type> typeParameters, ParameterExpression[] parameters) {
-        var prms = typeParameters.Zip(token.Parameters, Expression.Parameter).ToList();
+    protected virtual LambdaExpression VisitLambda(LambdaToken token, IEnumerable<Type> lambdaParameters, ParameterExpression[] parameters) {
+        var prms = lambdaParameters.Zip(token.Parameters, Expression.Parameter).ToList();
         var body = Visit(token.Body, parameters.Concat(prms).ToArray());
 
         return Expression.Lambda(body, prms);
     }
 
+    // ReSharper disable once UnusedParameter.Global
     protected virtual Expression VisitLiteral(LiteralToken token, ParameterExpression[] parameters) {
         return Expression.Constant(token.Value, token.Value != null ? token.Value.GetType() : typeof(object));
     }
 
+    // ReSharper disable once UnusedParameter.Global
     protected virtual Expression VisitMember(MemberToken token, ParameterExpression[] parameters) {
         var owner = Visit(token.Owner, parameters);
         return GetMember(owner, token.Name, parameters);
     }
 
+    // ReSharper disable once UnusedParameter.Global
     protected Expression GetMember(Expression owner, string name, ParameterExpression[] parameters) {
         var prop = Settings.IgnoreMemberCase
             ? owner.Type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
@@ -197,63 +201,6 @@ public class TokenVisitor {
         return GetMember(owner, name, parameters);
     }
 
-    protected MethodCallExpression GetMethodCall(Expression owner, string methodName, Token[] args, ParameterExpression[] parameters) {
-        if (methodName == "GetType")
-            throw new InvalidOperationException("GetType cannot be called");
-
-        var methodArgs = new Expression?[args.Length];
-        var lambdaArgs = new Dictionary<int, LambdaToken>();
-        for (var i = 0; i < args.Length; i++) {
-            var arg = args[i];
-            if (arg is LambdaToken lt) {
-                lambdaArgs.Add(i, lt);
-            }
-            else {
-                methodArgs[i] = Visit(arg, parameters);
-            }
-        }
-
-        MethodInfo? method;
-        var isExtension = false;
-        if (!lambdaArgs.Any()) {
-            method = owner.Type.GetMethod(methodName, methodArgs.Select(m => m!.Type).ToArray());
-        } else {
-            method = owner.Type.GetMethods()
-                .FirstOrDefault(m => m.Name == methodName && Helper.IsSuitable(m.GetParameters(), methodArgs));
-        }
-
-        ParameterInfo[] methodPrms;
-        if (method == null) {
-            isExtension = true;
-            var extResult = ExtensionMethods.Find(owner.Type, methodName, methodArgs);
-            if (extResult == null)
-                throw new InvalidTokenException($"Could not find instance or extension method for {methodName} for {owner.Type}");
-
-            (method, methodPrms) = extResult.Value;
-        }
-        else {
-            methodPrms = method.GetParameters();
-        }
-
-        // we might need to cast to target types
-        for (var i = 0; i < methodArgs.Length; i++) {
-            var prm = methodPrms[i];
-            var arg = methodArgs[i];
-            if (arg != null && arg.Type != prm.ParameterType) {
-                methodArgs[i] = Expression.Convert(arg, prm.ParameterType);
-            }
-        }
-
-        foreach (var lambdaArg in lambdaArgs) {
-            var g = methodPrms[lambdaArg.Key].ParameterType.GetGenericArguments();
-            methodArgs[lambdaArg.Key] = VisitLambda(lambdaArg.Value, g, parameters);
-        }
-
-        return isExtension
-            ? Expression.Call(null, method, new[] { owner }.Concat(methodArgs))
-            : Expression.Call(method.IsStatic ? null : owner, method, methodArgs);
-    }
-
     protected Expression GetBinary(string op, Expression left, Expression right) {
         if (Settings.TryGetBinaryInfo(op, out var bi))
             return bi.ExpressionConverter(left, right);
@@ -267,4 +214,124 @@ public class TokenVisitor {
 
         throw new InvalidTokenException($"Unknown unary operator {op}");
     }
+
+    protected MethodCallExpression GetMethodCall(Expression owner, string methodName, Token[] args, ParameterExpression[] parameters) {
+        if (methodName == "GetType")
+            throw new InvalidOperationException("GetType cannot be called");
+
+        var hasLambda = false;
+        var methodArgs = new Expression?[args.Length];
+        for (var i = 0; i < args.Length; i++) {
+            var arg = args[i];
+            if (arg is LambdaToken) {
+                hasLambda = true;
+            }
+            else {
+                methodArgs[i] = Visit(arg, parameters);
+            }
+        }
+
+        if (!hasLambda) {
+            var method = owner.Type.GetMethod(methodName, methodArgs.Select(m => m!.Type).ToArray());
+            if (method != null && TryBuildCall(owner, method, method.GetParameters(), methodArgs, args, false, parameters, out var result))
+                return result!;
+        }
+
+        foreach (var method in owner.Type.GetMethods().Where(m => m.Name == methodName)) {
+            if (TryBuildCall(owner, method, method.GetParameters(), methodArgs, args, false, parameters, out var result))
+                return result!;
+        }
+
+        foreach (var (m, p) in ExtensionMethods.Search(owner.Type, methodName)) {
+            if (TryBuildCall(owner, m, p, methodArgs,  args, true, parameters, out var result))
+                return result!;
+        }
+
+        throw new InvalidTokenException($"Could not find instance or extension method for {methodName} for {owner.Type}");
+    }
+
+    private bool TryBuildCall(Expression owner, MethodInfo method, IReadOnlyList<ParameterInfo> prms,
+                              Expression?[] args, Token[] tokens, bool isExtension,
+                              ParameterExpression[] parameters, out MethodCallExpression? result) {
+        result = null;
+        try {
+            result = BuildCall(owner, method, prms, args, tokens, isExtension, parameters);
+            return result != null;
+        }
+        catch {  // ignored
+            return false;
+        }
+    }
+
+    private MethodCallExpression? BuildCall(Expression owner, MethodInfo method, IReadOnlyList<ParameterInfo> prms,
+                                            Expression?[] args, Token[] tokens, bool isExtension,
+                                            ParameterExpression[] parameters) {
+        if (prms.Count != args.Length) return null;
+
+        for (var i = 0; i < prms.Count; i++) {
+            var prm = prms[i];
+
+            if (tokens[i] is LambdaToken lt) {
+                if (!typeof(Delegate).IsAssignableFrom(prm.ParameterType)) return null;
+                var lambdaPrms = prm.ParameterType.GetMethod("Invoke")?.GetParameters();
+                if (lambdaPrms == null || lt.Parameters.Length != lambdaPrms.Length) return null;
+                args[i] = VisitLambda(lt, lambdaPrms.Select(p => p.ParameterType), parameters);
+            }
+            else {
+                var arg = args[i];
+                // if token is not lambda, it should be visited and arg must be generated
+                // we also check if the args is assignable to prm
+                if (arg == null || !CanConvert(prm.ParameterType, arg.Type)) return null;
+
+                // if it can be assignable but not the same type, we cast it to the target type
+                if (arg.Type != prm.ParameterType) {
+                    args[i] = Expression.Convert(arg, prm.ParameterType);
+                }
+            }
+        }
+
+        return isExtension
+            ? Expression.Call(null, method, new[] { owner }.Concat(args))
+            : Expression.Call(method.IsStatic ? null : owner, method, args);
+    }
+
+    private static bool CanConvert(Type to, Type from) {
+        if (from == to || from.IsAssignableFrom(to))
+            return true;
+
+        var nonNullableFrom = Nullable.GetUnderlyingType(from) ?? from;
+        var nonNullableTo = Nullable.GetUnderlyingType(to) ?? to;
+
+        return IsImplicitlyConvertible(nonNullableFrom, nonNullableTo);
+    }
+
+    private static bool IsImplicitlyConvertible(Type from, Type to) => _implicitNumericConversions.Contains((from, to));
+
+    private static readonly HashSet<(Type, Type)> _implicitNumericConversions = [
+        (typeof(sbyte), typeof(short)), (typeof(sbyte), typeof(int)), (typeof(sbyte), typeof(long)),
+        (typeof(sbyte), typeof(float)), (typeof(sbyte), typeof(double)), (typeof(sbyte), typeof(decimal)),
+
+        (typeof(byte), typeof(short)), (typeof(byte), typeof(ushort)), (typeof(byte), typeof(int)),
+        (typeof(byte), typeof(uint)), (typeof(byte), typeof(long)), (typeof(byte), typeof(ulong)),
+        (typeof(byte), typeof(float)), (typeof(byte), typeof(double)), (typeof(byte), typeof(decimal)),
+
+        (typeof(short), typeof(int)), (typeof(short), typeof(long)), (typeof(short), typeof(float)),
+        (typeof(short), typeof(double)), (typeof(short), typeof(decimal)),
+
+        (typeof(ushort), typeof(int)), (typeof(ushort), typeof(uint)), (typeof(ushort), typeof(long)),
+        (typeof(ushort), typeof(ulong)), (typeof(ushort), typeof(float)), (typeof(ushort), typeof(double)),
+        (typeof(ushort), typeof(decimal)),
+
+        (typeof(int), typeof(long)), (typeof(int), typeof(float)), (typeof(int), typeof(double)),
+        (typeof(int), typeof(decimal)),
+
+        (typeof(uint), typeof(long)), (typeof(uint), typeof(ulong)), (typeof(uint), typeof(float)),
+        (typeof(uint), typeof(double)), (typeof(uint), typeof(decimal)),
+
+        (typeof(long), typeof(float)), (typeof(long), typeof(double)), (typeof(long), typeof(decimal)),
+
+        (typeof(ulong), typeof(float)), (typeof(ulong), typeof(double)), (typeof(ulong), typeof(decimal)),
+
+        (typeof(float), typeof(double))
+    ];
 }

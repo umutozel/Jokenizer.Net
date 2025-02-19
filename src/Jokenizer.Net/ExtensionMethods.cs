@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -8,13 +9,11 @@ using System.Runtime.CompilerServices;
 namespace Jokenizer.Net;
 
 public static class ExtensionMethods {
-    private static readonly HashSet<MethodInfo> _extensions = [];
+    private static readonly ConcurrentDictionary<Type, Dictionary<string, List<MethodInfo>>> _extensions = new();
 
     static ExtensionMethods() => ScanTypes(typeof(Queryable), typeof(Enumerable));
 
     public static IList<MethodInfo> ProbeAssemblies(params Assembly[] assemblies) =>
-        assemblies.SelectMany(ProbeAssembly).ToList();
-    public static IList<MethodInfo> ProbeAssemblies(IEnumerable<Assembly> assemblies) =>
         assemblies.SelectMany(ProbeAssembly).ToList();
     public static IList<MethodInfo> ProbeAssembly(Assembly assembly) =>
         ScanTypes(assembly.GetTypes().Where(t => t.IsSealed && t is { IsGenericType: false, IsNested: false }));
@@ -22,51 +21,76 @@ public static class ExtensionMethods {
     public static IList<MethodInfo> ScanTypes(IEnumerable<Type> types) => types.SelectMany(ScanType).ToList();
 
     public static IList<MethodInfo> ScanType(Type type) {
-        var methods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-                          .Where(m => m.IsDefined(typeof(ExtensionAttribute), false))
-                          .ToList();
+        var extensions = type
+            .GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+            .Where(m => m.IsDefined(typeof(ExtensionAttribute), false))
+            .ToList();
 
-        methods.ForEach(m => _extensions.Add(m));
+        foreach (var method in extensions) {
+            var parameters = method.GetParameters();
+            var extensionType = parameters[0].ParameterType;
+            var restPrms = new ArraySegment<ParameterInfo>(parameters, 1, parameters.Length - 1);
 
-        return methods;
+            if (extensionType.ContainsGenericParameters) {
+                extensionType = extensionType.GetGenericTypeDefinition();
+            }
+
+            var methodName = method.Name;
+            _extensions.AddOrUpdate(extensionType,
+                _ => new Dictionary<string, List<MethodInfo>> {
+                    { methodName, [method] }
+                },
+                (_, existingDict) => {
+                    if (!existingDict.TryGetValue(methodName, out var methodList)) {
+                        methodList = [];
+                        existingDict[methodName] = methodList;
+                    }
+                    methodList.Add(method);
+                    return existingDict;
+                });
+        }
+
+        return extensions.ToList();
     }
 
-    internal static (MethodInfo, ParameterInfo[])? Find(Type forType, string name, Expression?[] args) {
-        var genericArgs = forType.IsConstructedGenericType ? forType.GetGenericArguments() : [];
+    internal static IEnumerable<(MethodInfo, IReadOnlyList<ParameterInfo>)> Search(Type forType, string methodName) {
+        // find extension methods for implemented interfaces
+        IEnumerable<Type> interfaces = forType.GetInterfaces();
+        if (forType.IsInterface) {
+            interfaces = new [] { forType }.Concat(interfaces);
+        }
+        foreach (var interfaceType in interfaces) {
+            var it = interfaceType.IsGenericType ? interfaceType.GetGenericTypeDefinition() : interfaceType;
+            if (!_extensions.TryGetValue(it, out var interfaceMethodDict)) continue;
+            if (!interfaceMethodDict.TryGetValue(methodName, out var interfaceMethods)) continue;
 
-        foreach (var extension in _extensions.Where(e => e.Name == name)) {
-            var m = extension;
+            foreach (var method in interfaceMethods) {
+                var m = method;
+                if (m.IsGenericMethodDefinition) {
+                    var genericArgs = interfaceType.GetGenericArguments();
+                    if (m.GetGenericArguments().Length != genericArgs.Length) continue;
 
-            var prmType = m.GetParameters()[0].ParameterType;
-            if (prmType.IsConstructedGenericType) {
-                prmType = prmType.GetGenericTypeDefinition();
+                    m = m.MakeGenericMethod(genericArgs);
+                }
+
+                var prms = m.GetParameters();
+                yield return (m, new ArraySegment<ParameterInfo>(prms, 1, prms.Length - 1));
             }
-            if (!prmType.IsAssignableFrom(forType)) {
-                if (!prmType.IsGenericType) continue;
+        }
 
-                if (!forType.IsConstructedGenericType || forType.GetGenericTypeDefinition() != prmType) {
-                    var interfaces = forType.GetInterfaces();
-                    var forGeneric = interfaces
-                        .FirstOrDefault(i => i == prmType || (i.IsGenericType && i.GetGenericTypeDefinition() == prmType));
-
-                    if (forGeneric == null) continue;
-
-                    genericArgs = forGeneric.GetGenericArguments();
+        // find type and  BaseType assignable extension methods
+        var baseType = forType;
+        do {
+            var t = baseType.ContainsGenericParameters ? baseType.GetGenericTypeDefinition() : baseType;
+            if (_extensions.TryGetValue(t, out var baseMethodDict)
+                && baseMethodDict.TryGetValue(methodName, out var baseMethods)) {
+                foreach (var m in baseMethods) {
+                    var prms = m.GetParameters();
+                    yield return (m, new ArraySegment<ParameterInfo>(prms, 1, prms.Length - 1));
                 }
             }
 
-            if (m.IsGenericMethodDefinition) {
-                if (m.GetGenericArguments().Length != genericArgs.Length) continue;
-
-                m = m.MakeGenericMethod(genericArgs);
-            }
-
-            var prms = m.GetParameters().Skip(1).ToArray();
-            if (!Helper.IsSuitable(prms, args)) continue;
-                
-            return (m, prms);
-        }
-
-        return null;
+            baseType = baseType.BaseType;
+        } while (baseType != null);
     }
 }

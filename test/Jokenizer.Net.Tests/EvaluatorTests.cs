@@ -404,4 +404,16 @@ public class EvaluatorTests {
 
         Assert.False(v());
     }
+
+    [Fact]
+    public void ShouldHandleCasts() {
+        List<Person> data = [new() { Age = 10, Salary = 32}];
+
+        var v1 = Evaluator.ToFunc<double>(
+            "@0.Max(p => p.Salary + p.Age)",
+            data
+        );
+
+        Assert.Equal(42, v1());
+    }
 }
