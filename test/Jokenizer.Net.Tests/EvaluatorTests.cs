@@ -160,6 +160,8 @@ public class EvaluatorTests {
 
         var v4 = Evaluator.ToFunc<int>("@0[3]", company);
         Assert.Equal(company[3], v4());
+
+        Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<Person, string>("p => p[0]"));
     }
 
     [Fact]

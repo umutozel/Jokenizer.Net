@@ -20,15 +20,14 @@ public class TokenVisitor {
         Variables = variables ?? new Dictionary<string, object?>();
         Settings = settings ?? Settings.Default;
 
-        if (values == null) return;
-
         var i = 0;
-        values.ToList().ForEach(e => {
-            var k = $"@{i++}";
-            if (!Variables.ContainsKey(k)) {
-                Variables.Add(k, e);
-            }
-        });
+        values?.ToList()
+            .ForEach(e => {
+                var k = $"@{i++}";
+                if (!Variables.ContainsKey(k)) {
+                    Variables.Add(k, e);
+                }
+            });
     }
 
     public virtual LambdaExpression Process(Token token, IEnumerable<Type>? typeParameters, IEnumerable<ParameterExpression>? parameters = null) {
