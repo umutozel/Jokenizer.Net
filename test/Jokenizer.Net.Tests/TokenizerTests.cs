@@ -111,13 +111,13 @@ public class TokenizerTests {
         LiteralToken? lt;
         Assert.Equal(2, e.Items.Length);
         Assert.NotNull(lt = e.Items[0] as LiteralToken);
-        Assert.Equal(4, lt!.Value);
+        Assert.Equal(4, lt.Value);
         MemberToken? mt;
         Assert.NotNull(mt = e.Items[1] as MemberToken);
-        Assert.Equal("c", mt!.Name);
+        Assert.Equal("c", mt.Name);
         VariableToken? vt;
         Assert.NotNull(vt = mt.Owner as VariableToken);
-        Assert.Equal("b", vt!.Name);
+        Assert.Equal("b", vt.Name);
 
         Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new ["));
         Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("new []"));
@@ -133,13 +133,13 @@ public class TokenizerTests {
         LiteralToken? lt;
         Assert.Equal(2, e.Items.Length);
         Assert.NotNull(lt = e.Items[0] as LiteralToken);
-        Assert.Equal(4, lt!.Value);
+        Assert.Equal(4, lt.Value);
         MemberToken? mt;
         Assert.NotNull(mt = e.Items[1] as MemberToken);
-        Assert.Equal("c", mt!.Name);
+        Assert.Equal("c", mt.Name);
         VariableToken? vt;
         Assert.NotNull(vt = mt.Owner as VariableToken);
-        Assert.Equal("b", vt!.Name);
+        Assert.Equal("b", vt.Name);
 
         Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("["));
         Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse<ObjectToken>("[4, ]"));
@@ -200,6 +200,7 @@ public class TokenizerTests {
 
         Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse("(a, 4) => a < 4"));
         Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse("4 => a < 4"));
+        Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse("4 =>"));
     }
 
     [Fact]
@@ -238,6 +239,8 @@ public class TokenizerTests {
 
         var wf = te.WhenFalse as LiteralToken;
         Assert.Equal(21, wf!.Value);
+
+        Assert.Throws<InvalidSyntaxException>(() => Tokenizer.Parse("a ? b : "));
     }
 
     [Fact]

@@ -22,7 +22,8 @@ internal class ClassFactory {
 
     public Type GetDynamicClass(IEnumerable<DynamicProperty> properties) {
         var signature = new Signature(properties);
-        if (_classes.TryGetValue(signature, out var @class)) return @class;
+        if (_classes.TryGetValue(signature, out var @class))
+            return @class;
 
         lock (_classesLocker) {
             if (!_classes.ContainsKey(signature))

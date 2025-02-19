@@ -11,7 +11,7 @@ public static class Evaluator {
     private static Token Parse(string token, Settings? settings) {
         var exp = Tokenizer.Parse(token, settings);
         if (exp is null)
-            throw new InsufficientMemoryException("Token cannot be parsed.");
+            throw new InvalidTokenException("Token cannot be parsed.");
 
         return exp;
     }

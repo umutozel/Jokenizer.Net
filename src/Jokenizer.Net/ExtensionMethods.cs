@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -29,7 +28,6 @@ public static class ExtensionMethods {
         foreach (var method in extensions) {
             var parameters = method.GetParameters();
             var extensionType = parameters[0].ParameterType;
-            var restPrms = new ArraySegment<ParameterInfo>(parameters, 1, parameters.Length - 1);
 
             if (extensionType.ContainsGenericParameters) {
                 extensionType = extensionType.GetGenericTypeDefinition();
@@ -78,7 +76,7 @@ public static class ExtensionMethods {
             }
         }
 
-        // find type and  BaseType assignable extension methods
+        // find type and BaseType assignable extension methods
         var baseType = forType;
         do {
             var t = baseType.ContainsGenericParameters ? baseType.GetGenericTypeDefinition() : baseType;

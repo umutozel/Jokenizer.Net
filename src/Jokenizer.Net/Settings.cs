@@ -10,7 +10,7 @@ public class Settings {
     private static readonly Lazy<Settings> _default = new();
     public static Settings Default => _default.Value;
 
-    public bool IgnoreMemberCase { get; set; } = false;
+    public bool IgnoreMemberCase { get; set; }
     private readonly ConcurrentDictionary<string, object?> _knowns = new();
     public IEnumerable<string> KnownIdentifiers => _knowns.Keys;
 
@@ -159,9 +159,6 @@ public class Settings {
 
         return true;
     }
-
-    private static bool IsFloatingPoint(Type type) =>
-        type == typeof(float) || type == typeof(double) || type == typeof(decimal);
 }
 
 public delegate Expression UnaryExpressionConverter(Expression exp);

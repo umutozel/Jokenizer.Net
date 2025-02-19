@@ -23,6 +23,8 @@ public class EvaluatorTests {
     public void ShouldEvaluateNumber() {
         var v = Evaluator.ToFunc<int>("42");
         Assert.Equal(42, v());
+
+        Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<int>("."));
     }
 
     [Fact]
@@ -60,6 +62,10 @@ public class EvaluatorTests {
         var settings = new Settings().AddKnownValue("secret", 42);
         var v4 = Evaluator.ToFunc<int>("secret", settings);
         Assert.Equal(42, v4());
+
+        settings.AddKnownValue("secret", 7);
+        var v5 = Evaluator.ToFunc<int>("secret", settings);
+        Assert.Equal(7, v5());
     }
 
     [Fact]
@@ -79,16 +85,21 @@ public class EvaluatorTests {
         var v = Evaluator.ToFunc<bool>("!IsActive", new Dictionary<string, object?> { { "IsActive", true } });
         Assert.False(v());
 
-        Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<bool>(new UnaryToken('/', new LiteralToken(1))));
+        Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<bool>(new UnaryToken('/', new LiteralToken(1)), Settings.Default));
     }
 
     [Fact]
     public void ShouldEvaluateCustomUnary() {
         var settings = new Settings()
             .AddUnaryOperator('^', e => Expression.Multiply(e, e));
+        var values = new Dictionary<string, object?> { { "Id", 16 } };
 
-        var v = Evaluator.ToFunc<int>("^Id", new Dictionary<string, object?> { { "Id", 16 } }, settings);
-        Assert.Equal(256, v());
+        var v1 = Evaluator.ToFunc<int>("^Id", values, settings);
+        Assert.Equal(256, v1());
+
+        settings.AddUnaryOperator('^', e => Expression.Add(e, e));
+        var v2 = Evaluator.ToFunc<int>("^Id", values, settings);
+        Assert.Equal(32, v2());
     }
 
     [Fact]
@@ -128,13 +139,14 @@ public class EvaluatorTests {
 
     [Fact]
     public void ShouldEvaluateIndexer() {
-        var name = "Rick";
+        const string name = "Rick";
         var names = new[] { name };
         dynamic user = new ExpandoObject();
         user.Name = name;
         dynamic model = new ExpandoObject();
         model.names = names;
         model.user = user;
+        var company = new Company { Id = Guid.NewGuid() };
 
         var v1 = Evaluator.ToFunc<string>("names[0]", model);
         Assert.Equal("Rick", v1());
@@ -145,6 +157,9 @@ public class EvaluatorTests {
         // should try indexer for missing member access
         var v3 = Evaluator.ToFunc<object>("user.Name", model);
         Assert.Equal("Rick", v3());
+
+        var v4 = Evaluator.ToFunc<int>("@0[3]", company);
+        Assert.Equal(company[3], v4());
     }
 
     [Fact]
@@ -171,6 +186,9 @@ public class EvaluatorTests {
 
         var v4 = Evaluator.ToFunc<Company, int>("c => c.Len()");
         Assert.Equal(7, v4(new Company { Name = "Netflix" }));
+
+        var v5 = Evaluator.ToFunc<Company, int>("c => c.Count(i => i * 2)");
+        Assert.Equal(14, v5(new Company { Name = "Netflix" }));
 
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<bool>("@0[1]()"));
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<IEnumerable<int>, int>("SumBody(i => i*2)"));
@@ -238,20 +256,23 @@ public class EvaluatorTests {
                                                .First(m => m.Name == "Contains" && m.GetParameters().Length == 2)
                                                .MakeGenericMethod(typeof(Company));
 
-        var settings = new Settings()
-            .AddBinaryOperator(
-                "in",
-                (l, r) => Expression.Call(containsMethod, [r, l])
-            );
+        var settings = new Settings().AddBinaryOperator(
+            "in",
+            (l, r) => Expression.Call(containsMethod, [l, r])
+        );
+        settings.AddBinaryOperator(
+            "in",
+            (l, r) => Expression.Call(containsMethod, [r, l])
+        );
 
         var company1 = new Company();
         var company2 = new Company();
         var companies = new[] { company1 };
 
-        var f = Evaluator.ToFunc<Company, IEnumerable<Company>, bool>("(c, cs) => c in cs", settings);
+        var f1 = Evaluator.ToFunc<Company, IEnumerable<Company>, bool>("(c, cs) => c in cs", settings);
 
-        Assert.True(f(company1, companies));
-        Assert.False(f(company2, companies));
+        Assert.True(f1(company1, companies));
+        Assert.False(f1(company2, companies));
     }
 
     [Fact]
@@ -282,6 +303,7 @@ public class EvaluatorTests {
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<string>(new AssignToken("Name", new LiteralToken("Netflix"))));
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<string>(new GroupToken([new LiteralToken("Netflix"), new LiteralToken("Google")])));
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<string>("a < b => b*2"));
+        Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<string>("a < b => b*2", Settings.Default));
     }
 
     [Fact]
@@ -292,6 +314,9 @@ public class EvaluatorTests {
         var l2 = Evaluator.ToLambda(Tokenizer.Parse("i1 => i1 + 17 + @0")!, [typeof(int)], 1);
         Assert.Equal(42, ((Func<int, int>)l2.Compile())(24));
 
+        var l21 = Evaluator.ToLambda(Tokenizer.Parse("i1 => i1 + 17 + @0")!, [typeof(int)], Settings.Default, 1);
+        Assert.Equal(42, ((Func<int, int>)l21.Compile())(24));
+
         var l3 = Evaluator.ToLambda<int>(Tokenizer.Parse("() => 24 + i2 + @0")!, new Dictionary<string, object?> { { "i2", 17 } }, 1);
         Assert.Equal(42, l3.Compile()());
 
@@ -301,17 +326,26 @@ public class EvaluatorTests {
         var l5 = Evaluator.ToLambda<int, int>(Tokenizer.Parse("i1 => i1 + @0")!, 18);
         Assert.Equal(42, l5.Compile()(24));
 
+        var l51 = Evaluator.ToLambda<int, int>(Tokenizer.Parse("i1 => i1 + @0")!, Settings.Default, 18);
+        Assert.Equal(42, l51.Compile()(24));
+
         var l6 = Evaluator.ToLambda<int, int, int>(Tokenizer.Parse("(i1, i2) => i1 + i2 + init + @0")!, new Dictionary<string, object?> { { "init", 1 } }, 1);
         Assert.Equal(42, l6.Compile()(24, 16));
 
         var l7 = Evaluator.ToLambda<int, int, int>(Tokenizer.Parse("(i1, i2) => i1 + i2 + @0")!, 1);
         Assert.Equal(42, l7.Compile()(24, 17));
 
+        var l71 = Evaluator.ToLambda<int, int, int>(Tokenizer.Parse("(i1, i2) => i1 + i2 + @0")!, Settings.Default, 1);
+        Assert.Equal(42, l71.Compile()(24, 17));
+
         var l8 = Evaluator.ToLambda("i1 => i1 + i2 + @0", [typeof(int)], new Dictionary<string, object?> { { "i2", 17 } }, 1);
         Assert.Equal(42, ((Func<int, int>)l8.Compile())(24));
 
         var l9 = Evaluator.ToLambda("i1 => i1 + 17 + @0", [typeof(int)], 1);
         Assert.Equal(42, ((Func<int, int>)l9.Compile())(24));
+
+        var l91 = Evaluator.ToLambda("i1 => i1 + 17 + @0", [typeof(int)], Settings.Default, 1);
+        Assert.Equal(42, ((Func<int, int>)l91.Compile())(24));
 
         var l10 = Evaluator.ToLambda<int>("() => 24 + i2 + @0", new Dictionary<string, object?> { { "i2", 17 } }, 1);
         Assert.Equal(42, l10.Compile()());
@@ -322,11 +356,17 @@ public class EvaluatorTests {
         var l12 = Evaluator.ToLambda<int, int>("i1 => i1 + @0", 18);
         Assert.Equal(42, l12.Compile()(24));
 
+        var l121 = Evaluator.ToLambda<int, int>("i1 => i1 + @0", Settings.Default, 18);
+        Assert.Equal(42, l121.Compile()(24));
+
         var l13 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2 + init + @0", new Dictionary<string, object?> { { "init", 1 } }, 1);
         Assert.Equal(42, l13.Compile()(24, 16));
 
         var l14 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2 + @0", 1);
         Assert.Equal(42, l14.Compile()(24, 17));
+
+        var l141 = Evaluator.ToLambda<int, int, int>("(i1, i2) => i1 + i2 + @0", Settings.Default, 1);
+        Assert.Equal(42, l141.Compile()(24, 17));
 
         var f1 = Evaluator.ToFunc(Tokenizer.Parse("i1 => i1 + i2 + @0")!, [typeof(int)], new Dictionary<string, object?> { { "i2", 17 } }, 1);
         Assert.Equal(42, ((Func<int, int>)f1)(24));
@@ -334,11 +374,17 @@ public class EvaluatorTests {
         var f2 = Evaluator.ToFunc(Tokenizer.Parse("i1 => i1 + 17 + @0")!, [typeof(int)], 1);
         Assert.Equal(42, ((Func<int, int>)f2)(24));
 
+        var f21 = Evaluator.ToFunc(Tokenizer.Parse("i1 => i1 + 17 + @0")!, [typeof(int)], Settings.Default, 1);
+        Assert.Equal(42, ((Func<int, int>)f21)(24));
+
         var f3 = Evaluator.ToFunc<int>(Tokenizer.Parse("() => 24 + i2 + @0")!, new Dictionary<string, object?> { { "i2", 17 } }, 1);
         Assert.Equal(42, f3());
 
         var f4 = Evaluator.ToFunc<int>(Tokenizer.Parse("() => 24 + @0")!, 18);
         Assert.Equal(42, f4());
+
+        var f41 = Evaluator.ToFunc<int>(Tokenizer.Parse("() => 24 + @0")!, Settings.Default, 18);
+        Assert.Equal(42, f41());
 
         var f5 = Evaluator.ToFunc<int, int>(Tokenizer.Parse("i1 => i1 + i2 + @0")!, new Dictionary<string, object?> { { "i2", 17 } }, 1);
         Assert.Equal(42, f5(24));
@@ -346,17 +392,26 @@ public class EvaluatorTests {
         var f6 = Evaluator.ToFunc<int, int>(Tokenizer.Parse("i1 => i1 + @0")!, 18);
         Assert.Equal(42, f6(24));
 
+        var f61 = Evaluator.ToFunc<int, int>(Tokenizer.Parse("i1 => i1 + @0")!, Settings.Default, 18);
+        Assert.Equal(42, f61(24));
+
         var f7 = Evaluator.ToFunc<int, int, int>(Tokenizer.Parse("(i1, i2) => i1 + i2 + init + @0")!, new Dictionary<string, object?> { { "init", 1 } }, 1);
         Assert.Equal(42, f7(24, 16));
 
         var f8 = Evaluator.ToFunc<int, int, int>(Tokenizer.Parse("(i1, i2) => i1 + i2 + @0")!, 1);
         Assert.Equal(42, f8(24, 17));
 
+        var f81 = Evaluator.ToFunc<int, int, int>(Tokenizer.Parse("(i1, i2) => i1 + i2 + @0")!, Settings.Default, 1);
+        Assert.Equal(42, f81(24, 17));
+
         var f9 = Evaluator.ToFunc("i1 => i1 + i2 + @0", [typeof(int)], new Dictionary<string, object?> { { "i2", 17 } }, 1);
         Assert.Equal(42, ((Func<int, int>)f9)(24));
 
         var f10 = Evaluator.ToFunc("i1 => i1 + 17 + @0", [typeof(int)], 1);
         Assert.Equal(42, ((Func<int, int>)f10)(24));
+
+        var f101 = Evaluator.ToFunc("i1 => i1 + 17 + @0", [typeof(int)], Settings.Default, 1);
+        Assert.Equal(42, ((Func<int, int>)f101)(24));
 
         var f11 = Evaluator.ToFunc<int, int>("i1 => i1 + i2 + @0", new Dictionary<string, object?> { { "i2", 17 } }, 1);
         Assert.Equal(42, f11(24));
