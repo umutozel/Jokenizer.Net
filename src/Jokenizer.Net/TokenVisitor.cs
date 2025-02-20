@@ -264,25 +264,23 @@ public class TokenVisitor {
     private MethodCallExpression? BuildCall(Expression owner, MethodInfo method, IReadOnlyList<ParameterInfo> prms,
                                             Expression?[] args, Token[] tokens, bool isExtension,
                                             ParameterExpression[] parameters) {
-        if (prms.Count != args.Length)
+        var isArgumentCountCorrect = prms.Count == args.Length;
+        var isExtraParameterWithDefault = prms.Count > args.Length && prms[args.Length].HasDefaultValue;
+        if (!(isArgumentCountCorrect || isExtraParameterWithDefault))
             return null;
 
-        for (var i = 0; i < prms.Count; i++) {
+        for (var i = 0; i < args.Length; i++) {
             var prm = prms[i];
 
             if (tokens[i] is LambdaToken lt) {
                 if (!typeof(Delegate).IsAssignableFrom(prm.ParameterType))
                     return null;
-                var lambdaPrms = prm.ParameterType.GetMethod("Invoke")?.GetParameters();
-                if (lambdaPrms == null || lt.Parameters.Length != lambdaPrms.Length)
-                    return null;
+                var lambdaPrms = prm.ParameterType.GetMethod("Invoke")!.GetParameters();
                 args[i] = VisitLambda(lt, lambdaPrms.Select(p => p.ParameterType), parameters);
             }
             else {
                 // if token is not lambda, it must have been visited and arg must be generated
-                var arg = args[i];
-                if (arg == null)
-                    return null;
+                var arg = args[i]!;
 
                 // we also check if the arg is assignable to prm
                 if (arg.Type == prm.ParameterType)
@@ -293,6 +291,13 @@ public class TokenVisitor {
                 // if it can be assignable but not the same type, we cast it to the target type
                 args[i] = Expression.Convert(arg, prm.ParameterType);
             }
+        }
+
+        if (isExtraParameterWithDefault) {
+            var defaultValues = prms
+                .Skip(args.Length)
+                .Select(p => Expression.Constant(p.DefaultValue));
+            args = args.Concat(defaultValues).ToArray();
         }
 
         return isExtension

@@ -61,14 +61,8 @@ public static class ExtensionMethods {
         foreach (var interfaceType in interfaces) {
             var interfaceMethods = Find(interfaceType, methodName);
             foreach (var method in interfaceMethods) {
-                var m = method;
-                if (m.IsGenericMethodDefinition) {
-                    var genericArgs = interfaceType.GetGenericArguments();
-                    if (m.GetGenericArguments().Length != genericArgs.Length)
-                        continue;
-
-                    m = m.MakeGenericMethod(genericArgs);
-                }
+                if (!FixGeneric(interfaceType, method, out var m))
+                    continue;
 
                 var prms = m.GetParameters();
                 yield return (m, new ArraySegment<ParameterInfo>(prms, 1, prms.Length - 1));
@@ -80,14 +74,8 @@ public static class ExtensionMethods {
         do {
             var typeMethods = Find(type, methodName);
             foreach (var method in typeMethods) {
-                var m = method;
-                if (m.IsGenericMethodDefinition) {
-                    var genericArgs = type.GetGenericArguments();
-                    if (m.GetGenericArguments().Length != genericArgs.Length)
-                        continue;
-
-                    m = m.MakeGenericMethod(genericArgs);
-                }
+                if (!FixGeneric(type, method, out var m))
+                    continue;
 
                 var prms = m.GetParameters();
                 yield return (m, new ArraySegment<ParameterInfo>(prms, 1, prms.Length - 1));
@@ -116,5 +104,18 @@ public static class ExtensionMethods {
         }
 
         return [];
+    }
+
+    private static bool FixGeneric(Type type, MethodInfo method, out MethodInfo fixedMethod) {
+        fixedMethod = method;
+        if (!method.IsGenericMethodDefinition) return true;
+
+        var genericArgs = type.GetGenericArguments();
+        if (method.GetGenericArguments().Length != genericArgs.Length)
+            return false;
+
+        fixedMethod = method.MakeGenericMethod(genericArgs);
+
+        return true;
     }
 }

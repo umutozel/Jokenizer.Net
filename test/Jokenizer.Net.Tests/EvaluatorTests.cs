@@ -207,20 +207,28 @@ public class EvaluatorTests {
         var v1 = Evaluator.ToFunc<Company, int>("c => c.Len()");
         Assert.Equal(c.Len(), v1(c));
 
-        var v2 = Evaluator.ToFunc<Company, int>("c => c.LenProc(n => n.Length * 2)");
-        Assert.Equal(c.LenProc(n => n!.Length * 2), v2(c));
+        var v2 = Evaluator.ToFunc<Company, int>("c => c.Len(0)");
+        Assert.Equal(c.Len(0), v2(c));
 
-        var v3 = Evaluator.ToFunc<Company, int>("c => c.IdLen()");
-        Assert.Equal(c.IdLen(), v3(c));
+        var v3 = Evaluator.ToFunc<Company, int>("c => c.LenProc(n => n.Length * 2)");
+        Assert.Equal(c.LenProc(n => n!.Length * 2), v3(c));
 
-        var v4 = Evaluator.ToFunc<Company, int>("c => c.IdProc(i => i.ToString()[4] * 2)");
-        Assert.Equal(c.IdProc(i => i.ToString()[4] * 2), v4(c));
+        var v4 = Evaluator.ToFunc<Company, int>("c => c.IdLen()");
+        Assert.Equal(c.IdLen(), v4(c));
 
-        var v5 = Evaluator.ToFunc<Company, int>("c => c.NameLen()");
-        Assert.Equal(c.NameLen(), v5(c));
+        var v5 = Evaluator.ToFunc<Company, int>("c => c.IdProc(i => i.ToString()[4] * 2)");
+        Assert.Equal(c.IdProc(i => i.ToString()[4] * 2), v5(c));
 
-        var v6 = Evaluator.ToFunc<Company, int>("c => c.NameProc(n => n.Length * 2)");
-        Assert.Equal(c.NameProc(n => n!.Length * 2), v6(c));
+        var v6 = Evaluator.ToFunc<Company, int>("c => c.NameLen()");
+        Assert.Equal(c.NameLen(), v6(c));
+
+        var v7 = Evaluator.ToFunc<Company, int>("c => c.NameProc(n => n.Length * 2)");
+        Assert.Equal(c.NameProc(n => n!.Length * 2), v7(c));
+
+        Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<Company, int>("c => c.Len(a => a*2)"));
+        Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<Company, int>("c => c.LenProc(2)"));
+        Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<Company, int>("c => c.Invalid(n => n.Length * 2)"));
+        Assert.Throws<InvalidSyntaxException>(() => Evaluator.ToFunc<Company, int>("c => c.Len('c')"));
     }
 
     [Fact]
