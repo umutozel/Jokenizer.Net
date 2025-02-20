@@ -264,27 +264,34 @@ public class TokenVisitor {
     private MethodCallExpression? BuildCall(Expression owner, MethodInfo method, IReadOnlyList<ParameterInfo> prms,
                                             Expression?[] args, Token[] tokens, bool isExtension,
                                             ParameterExpression[] parameters) {
-        if (prms.Count != args.Length) return null;
+        if (prms.Count != args.Length)
+            return null;
 
         for (var i = 0; i < prms.Count; i++) {
             var prm = prms[i];
 
             if (tokens[i] is LambdaToken lt) {
-                if (!typeof(Delegate).IsAssignableFrom(prm.ParameterType)) return null;
+                if (!typeof(Delegate).IsAssignableFrom(prm.ParameterType))
+                    return null;
                 var lambdaPrms = prm.ParameterType.GetMethod("Invoke")?.GetParameters();
-                if (lambdaPrms == null || lt.Parameters.Length != lambdaPrms.Length) return null;
+                if (lambdaPrms == null || lt.Parameters.Length != lambdaPrms.Length)
+                    return null;
                 args[i] = VisitLambda(lt, lambdaPrms.Select(p => p.ParameterType), parameters);
             }
             else {
+                // if token is not lambda, it must have been visited and arg must be generated
                 var arg = args[i];
-                // if token is not lambda, it should be visited and arg must be generated
-                // we also check if the args is assignable to prm
-                if (arg == null || !CanConvert(prm.ParameterType, arg.Type)) return null;
+                if (arg == null)
+                    return null;
+
+                // we also check if the arg is assignable to prm
+                if (arg.Type == prm.ParameterType)
+                    continue;
+                if (!Helper.CanConvert(prm.ParameterType, arg.Type))
+                    return null;
 
                 // if it can be assignable but not the same type, we cast it to the target type
-                if (arg.Type != prm.ParameterType) {
-                    args[i] = Expression.Convert(arg, prm.ParameterType);
-                }
+                args[i] = Expression.Convert(arg, prm.ParameterType);
             }
         }
 
@@ -292,44 +299,4 @@ public class TokenVisitor {
             ? Expression.Call(null, method, new[] { owner }.Concat(args))
             : Expression.Call(method.IsStatic ? null : owner, method, args);
     }
-
-    private static bool CanConvert(Type to, Type from) {
-        if (from == to || from.IsAssignableFrom(to))
-            return true;
-
-        var nonNullableFrom = Nullable.GetUnderlyingType(from) ?? from;
-        var nonNullableTo = Nullable.GetUnderlyingType(to) ?? to;
-
-        return IsImplicitlyConvertible(nonNullableFrom, nonNullableTo);
-    }
-
-    private static bool IsImplicitlyConvertible(Type from, Type to) => _implicitNumericConversions.Contains((from, to));
-
-    private static readonly HashSet<(Type, Type)> _implicitNumericConversions = [
-        (typeof(sbyte), typeof(short)), (typeof(sbyte), typeof(int)), (typeof(sbyte), typeof(long)),
-        (typeof(sbyte), typeof(float)), (typeof(sbyte), typeof(double)), (typeof(sbyte), typeof(decimal)),
-
-        (typeof(byte), typeof(short)), (typeof(byte), typeof(ushort)), (typeof(byte), typeof(int)),
-        (typeof(byte), typeof(uint)), (typeof(byte), typeof(long)), (typeof(byte), typeof(ulong)),
-        (typeof(byte), typeof(float)), (typeof(byte), typeof(double)), (typeof(byte), typeof(decimal)),
-
-        (typeof(short), typeof(int)), (typeof(short), typeof(long)), (typeof(short), typeof(float)),
-        (typeof(short), typeof(double)), (typeof(short), typeof(decimal)),
-
-        (typeof(ushort), typeof(int)), (typeof(ushort), typeof(uint)), (typeof(ushort), typeof(long)),
-        (typeof(ushort), typeof(ulong)), (typeof(ushort), typeof(float)), (typeof(ushort), typeof(double)),
-        (typeof(ushort), typeof(decimal)),
-
-        (typeof(int), typeof(long)), (typeof(int), typeof(float)), (typeof(int), typeof(double)),
-        (typeof(int), typeof(decimal)),
-
-        (typeof(uint), typeof(long)), (typeof(uint), typeof(ulong)), (typeof(uint), typeof(float)),
-        (typeof(uint), typeof(double)), (typeof(uint), typeof(decimal)),
-
-        (typeof(long), typeof(float)), (typeof(long), typeof(double)), (typeof(long), typeof(decimal)),
-
-        (typeof(ulong), typeof(float)), (typeof(ulong), typeof(double)), (typeof(ulong), typeof(decimal)),
-
-        (typeof(float), typeof(double))
-    ];
 }

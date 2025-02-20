@@ -55,18 +55,17 @@ public static class ExtensionMethods {
         // find extension methods for implemented interfaces
         IEnumerable<Type> interfaces = forType.GetInterfaces();
         if (forType.IsInterface) {
-            interfaces = new [] { forType }.Concat(interfaces);
+            interfaces = new[] { forType }.Concat(interfaces);
         }
-        foreach (var interfaceType in interfaces) {
-            var it = interfaceType.IsGenericType ? interfaceType.GetGenericTypeDefinition() : interfaceType;
-            if (!_extensions.TryGetValue(it, out var interfaceMethodDict)) continue;
-            if (!interfaceMethodDict.TryGetValue(methodName, out var interfaceMethods)) continue;
 
+        foreach (var interfaceType in interfaces) {
+            var interfaceMethods = Find(interfaceType, methodName);
             foreach (var method in interfaceMethods) {
                 var m = method;
                 if (m.IsGenericMethodDefinition) {
                     var genericArgs = interfaceType.GetGenericArguments();
-                    if (m.GetGenericArguments().Length != genericArgs.Length) continue;
+                    if (m.GetGenericArguments().Length != genericArgs.Length)
+                        continue;
 
                     m = m.MakeGenericMethod(genericArgs);
                 }
@@ -77,18 +76,45 @@ public static class ExtensionMethods {
         }
 
         // find type and BaseType assignable extension methods
-        var baseType = forType;
+        var type = forType;
         do {
-            var t = baseType.ContainsGenericParameters ? baseType.GetGenericTypeDefinition() : baseType;
-            if (_extensions.TryGetValue(t, out var baseMethodDict)
-                && baseMethodDict.TryGetValue(methodName, out var baseMethods)) {
-                foreach (var m in baseMethods) {
-                    var prms = m.GetParameters();
-                    yield return (m, new ArraySegment<ParameterInfo>(prms, 1, prms.Length - 1));
+            var typeMethods = Find(type, methodName);
+            foreach (var method in typeMethods) {
+                var m = method;
+                if (m.IsGenericMethodDefinition) {
+                    var genericArgs = type.GetGenericArguments();
+                    if (m.GetGenericArguments().Length != genericArgs.Length)
+                        continue;
+
+                    m = m.MakeGenericMethod(genericArgs);
                 }
+
+                var prms = m.GetParameters();
+                yield return (m, new ArraySegment<ParameterInfo>(prms, 1, prms.Length - 1));
             }
 
-            baseType = baseType.BaseType;
-        } while (baseType != null);
+            type = type.BaseType;
+        } while (type != null);
+    }
+
+    private static IEnumerable<MethodInfo> Find(Type type, string methodName) {
+        var exactMatches = FindForType(type, methodName);
+
+        if (!type.IsConstructedGenericType)
+            return exactMatches;
+
+        var genDef = type.GetGenericTypeDefinition();
+        var genDefMatches = FindForType(genDef, methodName);
+
+        return exactMatches.Concat(genDefMatches);
+    }
+
+    private static IEnumerable<MethodInfo> FindForType(Type type, string methodName) {
+        if (_extensions.TryGetValue(type, out var interfaceMethodDict) &&
+            interfaceMethodDict.TryGetValue(methodName, out var interfaceMethods)) {
+            return interfaceMethods;
+        }
+
+        return [];
     }
 }

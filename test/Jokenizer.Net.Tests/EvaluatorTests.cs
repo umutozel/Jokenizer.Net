@@ -46,6 +46,8 @@ public class EvaluatorTests {
     public void ShouldEvaluateInterpolatedString() {
         var v = Evaluator.ToFunc<string>("$\"don't {@0}, 42\"", "panic");
         Assert.Equal("don't panic, 42", v());
+
+        Assert.Throws<InvalidSyntaxException>(() => Evaluator.ToFunc<string>("$\"don't {"));
     }
 
     [Fact]
@@ -110,6 +112,8 @@ public class EvaluatorTests {
         Assert.Equal(2, o.c);
         var s = o.ToString();
         Assert.Equal("{a=4, c=2}", s);
+
+        Assert.Throws<InvalidSyntaxException>(() => Evaluator.ToFunc<dynamic>("new { a ="));
     }
 
     [Fact]
@@ -162,6 +166,8 @@ public class EvaluatorTests {
         Assert.Equal(company[3], v4());
 
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<Person, string>("p => p[0]"));
+        Assert.Throws<InvalidSyntaxException>(() => Evaluator.ToFunc<Person, string>("p => p.Name[0"));
+        Assert.Throws<InvalidSyntaxException>(() => Evaluator.ToFunc<Person, string>("p => p.Name["));
     }
 
     [Fact]
@@ -186,15 +192,35 @@ public class EvaluatorTests {
         var v3 = Evaluator.ToFunc<string>("\"RICK\".ToLower()");
         Assert.Equal("rick", v3());
 
-        var v4 = Evaluator.ToFunc<Company, int>("c => c.Len()");
-        Assert.Equal(7, v4(new Company { Name = "Netflix" }));
-
-        var v5 = Evaluator.ToFunc<Company, int>("c => c.Count(i => i * 2)");
-        Assert.Equal(14, v5(new Company { Name = "Netflix" }));
+        var v4 = Evaluator.ToFunc<Company, int>("c => c.Count(i => i * 2)");
+        Assert.Equal(14, v4(new Company { Name = "Netflix" }));
 
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<bool>("@0[1]()"));
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<IEnumerable<int>, int>("SumBody(i => i*2)"));
         Assert.Throws<InvalidOperationException>(() => Evaluator.ToFunc<string, bool>("s => s.GetType()"));
+    }
+
+    [Fact]
+    public void ShouldEvaluateExtensions() {
+        var c = new Company { Id = Guid.NewGuid(), Name = "Netflix" };
+
+        var v1 = Evaluator.ToFunc<Company, int>("c => c.Len()");
+        Assert.Equal(c.Len(), v1(c));
+
+        var v2 = Evaluator.ToFunc<Company, int>("c => c.LenProc(n => n.Length * 2)");
+        Assert.Equal(c.LenProc(n => n!.Length * 2), v2(c));
+
+        var v3 = Evaluator.ToFunc<Company, int>("c => c.IdLen()");
+        Assert.Equal(c.IdLen(), v3(c));
+
+        var v4 = Evaluator.ToFunc<Company, int>("c => c.IdProc(i => i.ToString()[4] * 2)");
+        Assert.Equal(c.IdProc(i => i.ToString()[4] * 2), v4(c));
+
+        var v5 = Evaluator.ToFunc<Company, int>("c => c.NameLen()");
+        Assert.Equal(c.NameLen(), v5(c));
+
+        var v6 = Evaluator.ToFunc<Company, int>("c => c.NameProc(n => n.Length * 2)");
+        Assert.Equal(c.NameProc(n => n!.Length * 2), v6(c));
     }
 
     [Fact]
@@ -204,6 +230,8 @@ public class EvaluatorTests {
 
         var v2 = Evaluator.ToFunc<int>("@0 ? 42 : 21", false);
         Assert.Equal(21, v2());
+
+        Assert.Throws<InvalidSyntaxException>(() => Evaluator.ToFunc<bool>("a ?"));
     }
 
     [Fact]
@@ -233,6 +261,7 @@ public class EvaluatorTests {
         var v7 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == null");
         Assert.True(v7(new Company()));
 
+        Assert.Throws<InvalidSyntaxException>(() => Evaluator.ToFunc<int>("42 +"));
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<bool>(new BinaryToken("!", new LiteralToken(1), new LiteralToken(2))));
     }
 
@@ -433,6 +462,8 @@ public class EvaluatorTests {
         Assert.True(settings.ContainsKnown("true"));
         Assert.True(settings.ContainsUnary('!'));
         Assert.True(settings.ContainsBinary("%"));
+
+        Assert.Throws<InvalidSyntaxException>(() => Evaluator.ToFunc<Person, string>("p => !"));
     }
 
     [Fact]

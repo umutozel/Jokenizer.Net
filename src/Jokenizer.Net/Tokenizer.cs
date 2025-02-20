@@ -55,7 +55,8 @@ public class Tokenizer {
             }
         }
 
-        if (Done()) return t;
+        if (Done())
+            return t;
 
         Token r;
         do {
@@ -75,7 +76,8 @@ public class Tokenizer {
 
     protected virtual LiteralToken? TryNumber() {
         var n = GetNumber();
-        if (n == "") return null;
+        if (n == "")
+            return null;
 
         var isFloat = false;
         if (Get(_separator)) {
@@ -108,7 +110,8 @@ public class Tokenizer {
             Move();
         }
 
-        if (Ch != '"') return null;
+        if (Ch != '"')
+            return null;
 
         var q = Ch;
         var es = new List<Token>();
@@ -118,7 +121,8 @@ public class Tokenizer {
             if (c == q) {
                 Move();
 
-                if (es.Count <= 0) return new LiteralToken(s);
+                if (es.Count <= 0)
+                    return new LiteralToken(s);
 
                 if (s != "") {
                     es.Add(new LiteralToken(s));
@@ -153,7 +157,8 @@ public class Tokenizer {
                 }
 
                 var interExp = GetToken();
-                if (interExp is null) throw new InvalidSyntaxException($"Invalid interpolation at index ${Idx}");
+                if (interExp is null)
+                    throw new InvalidSyntaxException($"Invalid interpolation at index ${Idx}");
                 es.Add(interExp);
 
                 Skip();
@@ -180,18 +185,20 @@ public class Tokenizer {
     protected string GetVariableName() {
         var v = "";
 
-        if (IsVariableStart()) {
-            do {
-                v += Ch;
-                Move();
-            } while (StillVariable());
-        }
+        if (!IsVariableStart())
+            return v;
+
+        do {
+            v += Ch;
+            Move();
+        } while (StillVariable());
 
         return v;
     }
 
     protected virtual VariableToken? TryParameter() {
-        if (!Get("@")) return null;
+        if (!Get("@"))
+            return null;
 
         var n = GetNumber();
         if (string.IsNullOrEmpty(n))
@@ -201,7 +208,8 @@ public class Tokenizer {
     }
 
     protected virtual UnaryToken? TryUnary() {
-        if (!Settings.ContainsUnary(Ch)) return null;
+        if (!Settings.ContainsUnary(Ch))
+            return null;
 
         var u = Ch;
         Move();
@@ -228,7 +236,8 @@ public class Tokenizer {
     }
 
     protected virtual ObjectToken? TryObject() {
-        if (!Get("{")) return null;
+        if (!Get("{"))
+            return null;
 
         var es = new List<AssignToken>();
         do {
@@ -245,7 +254,8 @@ public class Tokenizer {
                 Skip();
 
                 var exp = GetToken();
-                if (exp is null) throw new InvalidSyntaxException($"Invalid assignment at {Idx}");
+                if (exp is null)
+                    throw new InvalidSyntaxException($"Invalid assignment at {Idx}");
 
                 es.Add(new AssignToken(vt.Name, exp));
             }
@@ -260,7 +270,8 @@ public class Tokenizer {
     }
 
     protected virtual ArrayToken? TryShortArray() {
-        if (!Get("[")) return null;
+        if (!Get("["))
+            return null;
 
         var tokens = GetArrayTokens();
         To("]");
@@ -297,7 +308,8 @@ public class Tokenizer {
     }
 
     protected virtual MemberToken? TryMember(Token t) {
-        if (!Get(".")) return null;
+        if (!Get("."))
+            return null;
 
         Skip();
         var v = GetVariableName();
@@ -307,7 +319,8 @@ public class Tokenizer {
     }
 
     protected virtual IndexerToken? TryIndexer(Token t) {
-        if (!Get("[")) return null;
+        if (!Get("["))
+            return null;
 
         Skip();
 
@@ -356,21 +369,25 @@ public class Tokenizer {
     }
 
     protected virtual TernaryToken? TryTernary(Token t) {
-        if (!Get("?")) return null;
+        if (!Get("?"))
+            return null;
 
         var whenTrue = GetToken();
-        if (whenTrue is null) throw new InvalidSyntaxException($"Invalid ternary at {Idx}");
+        if (whenTrue is null)
+            throw new InvalidSyntaxException($"Invalid ternary at {Idx}");
 
         To(":");
         var whenFalse = GetToken();
-        if (whenFalse is null) throw new InvalidSyntaxException($"Invalid ternary at {Idx}");
+        if (whenFalse is null)
+            throw new InvalidSyntaxException($"Invalid ternary at {Idx}");
 
         return new TernaryToken(t, whenTrue, whenFalse);
     }
 
     protected virtual BinaryToken? TryBinary(Token t) {
         var op = Settings.BinaryOperators.FirstOrDefault(Get);
-        if (op == null) return null;
+        if (op == null)
+            return null;
 
         var right = GetToken();
         return right switch {
@@ -400,7 +417,8 @@ public class Tokenizer {
     }
 
     protected bool Get(string s) {
-        if (!Eq(Idx, s)) return false;
+        if (!Eq(Idx, s))
+            return false;
 
         Move(s.Length);
         return true;
@@ -411,7 +429,8 @@ public class Tokenizer {
     }
 
     protected bool Eq(int index, string target) {
-        if (index + target.Length > Exp.Length) return false;
+        if (index + target.Length > Exp.Length)
+            return false;
         return Exp.Substring(Idx, target.Length) == target;
     }
 

@@ -98,22 +98,26 @@ public class Settings {
         };
 
     private static void FixTypes(ref Expression left, ref Expression right) {
-        if (left.Type == right.Type) return;
+        if (left.Type == right.Type)
+            return;
 
         FixNullable(left, ref right);
         FixNullable(right, ref left);
 
         var ok =
-            TryFixNumeric(left, ref right) ||
-            TryFixNumeric(right, ref left) ||
             TryFixForGuid(left, ref right) ||
             TryFixForGuid(right, ref left) ||
             TryFixForDateTime(left, ref right) ||
             TryFixForDateTime(right, ref left);
 
-        if (!ok) {
-            // let CLR throw exception if types are not compatible
+        if (ok)
+            return;
+
+        if (Helper.CanConvert(left.Type, right.Type)) {
             right = Expression.Convert(right, left.Type);
+        }
+        else {
+            left = Expression.Convert(left, right.Type);
         }
     }
 
@@ -124,14 +128,6 @@ public class Settings {
              && e1.Type.GetGenericArguments()[0] == e2.Type)) {
             e2 = Expression.Convert(e2, e1.Type);
         }
-    }
-
-    private static bool TryFixNumeric(Expression left, ref Expression right) {
-        var t1 = left.Type;
-        if (t1 != typeof(float) && t1 != typeof(double) && t1 != typeof(decimal)) return false;
-
-        right = Expression.Convert(right, t1);
-        return true;
     }
 
     private static bool TryFixForGuid(Expression e1, ref Expression e2) {
