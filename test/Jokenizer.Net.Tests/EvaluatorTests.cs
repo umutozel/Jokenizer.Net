@@ -262,12 +262,16 @@ public class EvaluatorTests {
         var v5 = Evaluator.ToFunc<Company, bool>($"c => c.CreateDate == \"{createDate}\"");
         Assert.True(v5(new Company { CreateDate = createDate }));
 
-        var updateDate = DateTime.Now.Date;
-        var v6 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == \"{updateDate}\"");
-        Assert.True(v6(new Company { UpdateDate = updateDate }));
+        var v6 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == DateTime.Parse(\"{createDate}\")");
+        Assert.True(v6(new Company { UpdateDate = createDate }));
 
-        var v7 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == null");
-        Assert.True(v7(new Company()));
+        var updateDate = DateTime.UtcNow;
+        var updateDateStr = updateDate.ToString(@"yyyy-MM-ddTHH\:mm\:ss.fffffffZ");
+        var v7 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == \"{updateDateStr}\"");
+        Assert.True(v7(new Company { UpdateDate = updateDate }));
+
+        var v8 = Evaluator.ToFunc<Company, bool>($"c => c.UpdateDate == null");
+        Assert.True(v8(new Company()));
 
         Assert.Throws<InvalidSyntaxException>(() => Evaluator.ToFunc<int>("42 +"));
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<bool>(new BinaryToken("!", new LiteralToken(1), new LiteralToken(2))));

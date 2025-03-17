@@ -190,8 +190,12 @@ public class TokenVisitor {
         if (prm != null)
             return prm;
 
-        if (name == "Math")
-            return Expression.Parameter(typeof(Math));
+        switch (name) {
+            case "Math":
+                return Expression.Parameter(typeof(Math));
+            case "DateTime":
+                return Expression.Parameter(typeof(DateTime));
+        }
 
         if (parameters.Count() != 1) throw new InvalidTokenException($"Unknown variable {name}");
 

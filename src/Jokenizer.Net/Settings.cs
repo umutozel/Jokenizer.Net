@@ -135,22 +135,24 @@ public class Settings {
             return false;
 
         var guidValue = Guid.Parse(ce2.Value.ToString());
-        Guid? nullableGuidValue = guidValue;
         e2 = e1.Type == typeof(Guid?)
-            ? Expression.Constant(nullableGuidValue, typeof(Guid?))
+            ? Expression.Constant((Guid?)guidValue, typeof(Guid?))
             : Expression.Constant(guidValue, typeof(Guid));
 
         return true;
     }
 
     private static bool TryFixForDateTime(Expression e1, ref Expression e2) {
-        if ((e1.Type != typeof(DateTime?) && e1.Type != typeof(DateTime)) || e2.Type != typeof(string) || !(e2 is ConstantExpression ce2))
+        if ((e1.Type != typeof(DateTime?) && e1.Type != typeof(DateTime)) || e2.Type != typeof(string) || e2 is not ConstantExpression ce2)
             return false;
 
-        var dateValue = DateTime.Parse(ce2.Value.ToString());
-        DateTime? nullableDateValue = dateValue;
+        var dateStr = ce2.Value.ToString();
+        var dateValue = DateTime.Parse(dateStr);
+        if (dateStr.EndsWith("Z")) {
+            dateValue = dateValue.ToUniversalTime();
+        }
         e2 = e1.Type == typeof(DateTime?)
-            ? Expression.Constant(nullableDateValue, typeof(DateTime?))
+            ? Expression.Constant((DateTime?)dateValue, typeof(DateTime?))
             : Expression.Constant(dateValue, typeof(DateTime));
 
         return true;
