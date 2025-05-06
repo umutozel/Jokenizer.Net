@@ -244,11 +244,17 @@ public class EvaluatorTests {
 
     [Fact]
     public void ShouldEvaluateBinary() {
-        var v1 = Evaluator.ToFunc<bool>("@0 > @1", 4, 2);
-        Assert.True(v1());
+        var v11 = Evaluator.ToFunc<bool>("@0 > @1", 4, 2);
+        Assert.True(v11());
 
-        var v2 = Evaluator.ToFunc<Company, bool>("c => c.PostalCode < 4");
-        Assert.True(v2(new Company { PostalCode = 3 }));
+        var v12 = Evaluator.ToFunc<bool>("@0 >= @1", 4, 3);
+        Assert.True(v12());
+
+        var v21 = Evaluator.ToFunc<Company, bool>("c => c.PostalCode < 4");
+        Assert.True(v21(new Company { PostalCode = 3 }));
+
+        var v22 = Evaluator.ToFunc<Company, bool>("c => c.PostalCode <= 3");
+        Assert.True(v22(new Company { PostalCode = 3 }));
 
         var id = Guid.NewGuid();
         var v3 = Evaluator.ToFunc<Company, bool>($"c => c.Id == \"{id}\"");

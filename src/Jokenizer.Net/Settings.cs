@@ -19,7 +19,7 @@ public class Settings {
 
     private readonly ConcurrentDictionary<string, BinaryOperatorInfo> _binary = new();
     public IEnumerable<string> BinaryOperators => _binary
-                                                  .OrderBy(b => b.Value.Precedence)
+                                                  .OrderByDescending(b => b.Key.Length)
                                                   .Select(b => b.Key);
 
     public Settings() {

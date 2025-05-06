@@ -183,7 +183,7 @@ public class TokenizerTests {
         Assert.Equal(TokenType.Lambda, e!.Type);
 
         var fe = e as LambdaToken;
-        Assert.Equal(2, fe!.Parameters.Count());
+        Assert.Equal(2, fe!.Parameters.Length);
         Assert.Equal(["a", "b"], fe.Parameters);
         Assert.Equal(TokenType.Binary, fe.Body.Type);
 
