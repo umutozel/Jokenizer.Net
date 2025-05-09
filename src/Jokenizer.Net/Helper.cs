@@ -6,6 +6,10 @@ namespace Jokenizer.Net;
 public static class Helper {
 
     public static bool CanConvert(Type to, Type from) {
+        if (to.IsEnum) {
+            to = Enum.GetUnderlyingType(to);
+        }
+
         if (from == to || from.IsAssignableFrom(to))
             return true;
 

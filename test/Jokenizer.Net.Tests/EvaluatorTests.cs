@@ -522,4 +522,17 @@ public class EvaluatorTests {
 
         Assert.Equal(42, v1());
     }
+
+    [Fact]
+    public void ShouldHandleEnumCast() {
+        var supplier = new Supplier {
+            Id = 1,
+            Name = "Supplier1",
+            SupplierType = SupplierType.Damage | SupplierType.Tyre,
+            SupplierTypes = [SupplierType.Damage, SupplierType.Tyre]
+        };
+
+        var v = Evaluator.ToFunc<Supplier, bool>("c => c.SupplierTypes.Contains(4)");
+        Assert.False(v(supplier));
+    }
 }
