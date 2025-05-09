@@ -5,8 +5,8 @@ namespace Jokenizer.Net.Tests.Fixture;
 
 public class Supplier {
     public int Id { get; set; }
-    public string Name { get; set; }
-    public ICollection<SupplierType> SupplierTypes { get; set; }
+    public string? Name { get; set; }
+    public ICollection<SupplierType> SupplierTypes { get; set; } = new List<SupplierType>();
     public SupplierType SupplierType { get; set; }
 }
 
