@@ -1,14 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
-using System.Threading;
 
 namespace Jokenizer.Net;
 
 using Tokens;
 
 public class Tokenizer {
-    private static readonly string _separator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
+    // Grammar is culture-independent: '.' is always the decimal separator, regardless of the
+    // thread's current culture. This avoids ambiguity with the argument separator ',' under
+    // locales like tr-TR where CurrentCulture's decimal would otherwise be ','.
+    private const string _separator = ".";
 
     protected readonly Settings Settings;
     protected readonly string Exp;
@@ -26,34 +29,14 @@ public class Tokenizer {
         Exp = exp;
 
         _len = exp.Length;
-        Ch = exp.ElementAt(0);
+        Ch = exp[0];
     }
 
     protected virtual Token? GetToken() {
         Skip();
 
-        var t = TryLiteral()
-                ?? TryVariable()
-                ?? TryParameter()
-                ?? TryUnary()
-                ?? TryGroup()
-                ?? TryObject()
-                ?? (Token?)TryShortArray();
-
-        switch (t) {
-            case null:
-                return null;
-            case VariableToken vt when Settings.TryGetKnownValue(vt.Name, out var value):
-                t = new LiteralToken(value);
-                break;
-            case VariableToken vt: {
-                if (vt.Name == "new") {
-                    Skip();
-                    t = (Token?)TryObject() ?? GetArray();
-                }
-                break;
-            }
-        }
+        var t = GetPrimary();
+        if (t == null) return null;
 
         if (Done())
             return t;
@@ -74,6 +57,30 @@ public class Tokenizer {
         return r;
     }
 
+    protected Token? GetPrimary() {
+        var t = TryLiteral()
+                ?? TryVariable()
+                ?? TryParameter()
+                ?? TryUnary()
+                ?? TryGroup()
+                ?? TryObject()
+                ?? (Token?)TryShortArray();
+
+        switch (t) {
+            case null:
+                return null;
+            case VariableToken vt when Settings.TryGetKnownValue(vt.Name, out var value):
+                t = new LiteralToken(value);
+                break;
+            case VariableToken { Name: "new" }:
+                Skip();
+                t = (Token?)TryObject() ?? GetArray();
+                break;
+        }
+
+        return t;
+    }
+
     protected virtual LiteralToken? TryNumber() {
         var n = GetNumber();
         if (n == "")
@@ -87,10 +94,18 @@ public class Tokenizer {
         }
 
         if (IsVariableStart())
-            throw new InvalidSyntaxException($"Unexpected character (${Ch}) at index ${Idx}");
+            throw new InvalidSyntaxException($"Unexpected character ({Ch}) at index {Idx}");
 
-        var val = isFloat ? float.Parse(n) : Convert.ChangeType(int.Parse(n), typeof(int));
-        return new LiteralToken(val);
+        try {
+            // Boxed separately so the ternary doesn't widen int to double as its common type.
+            object val = isFloat
+                ? (object)double.Parse(n, CultureInfo.InvariantCulture)
+                : int.Parse(n, CultureInfo.InvariantCulture);
+            return new LiteralToken(val);
+        }
+        catch (OverflowException) {
+            throw new InvalidSyntaxException($"Number too large at index {Idx}");
+        }
     }
 
     protected string GetNumber() {
@@ -158,7 +173,7 @@ public class Tokenizer {
 
                 var interExp = GetToken();
                 if (interExp is null)
-                    throw new InvalidSyntaxException($"Invalid interpolation at index ${Idx}");
+                    throw new InvalidSyntaxException($"Invalid interpolation at index {Idx}");
                 es.Add(interExp);
 
                 Skip();
@@ -213,8 +228,20 @@ public class Tokenizer {
 
         var u = Ch;
         Move();
-        var exp = GetToken();
+        Skip();
+
+        // Unary binds tighter than binary/ternary but looser than member/indexer/call,
+        // so we consume a primary atom plus its member/indexer/call chain here and leave
+        // any binary/ternary continuation to the outer GetToken loop.
+        var exp = GetPrimary();
         if (exp is null) throw new InvalidSyntaxException($"Invalid unary expression at {Idx}");
+
+        while (true) {
+            Skip();
+            var next = TryMember(exp) ?? TryIndexer(exp) ?? (Token?)TryCall(exp);
+            if (next == null) break;
+            exp = next;
+        }
 
         return new UnaryToken(u, exp);
     }
@@ -401,19 +428,16 @@ public class Tokenizer {
 
     protected bool IsNumber() => char.IsNumber(Ch);
 
-    protected bool IsVariableStart() =>
-        Ch == 95                    // `_`
-        || (Ch >= 65 && Ch <= 90)   // A...Z
-        || (Ch >= 97 && Ch <= 122); // a...z
+    protected bool IsVariableStart() => Ch == '_' || char.IsLetter(Ch);
 
-    protected bool StillVariable() => IsVariableStart() || IsNumber();
+    protected bool StillVariable() => Ch == '_' || char.IsLetterOrDigit(Ch);
 
     protected bool Done() => Idx >= _len;
 
     protected char Move(int count = 1) {
         Idx += count;
         var d = Done();
-        return Ch = d ? '\0' : Exp.ElementAt(Idx);
+        return Ch = d ? '\0' : Exp[Idx];
     }
 
     protected bool Get(string s) {

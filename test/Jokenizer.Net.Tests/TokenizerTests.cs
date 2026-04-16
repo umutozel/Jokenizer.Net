@@ -27,9 +27,9 @@ public class TokenizerTests {
     }
 
     [Fact]
-    public void ShouldReturnFloatLiteralToken() {
+    public void ShouldReturnDoubleLiteralToken() {
         var e = Tokenizer.Parse<LiteralToken>("42.4242");
-        Assert.Equal(42.4242f, e!.Value);
+        Assert.Equal(42.4242, e!.Value);
     }
 
     [Fact]

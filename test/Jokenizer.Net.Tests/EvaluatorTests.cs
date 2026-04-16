@@ -42,9 +42,16 @@ public class EvaluatorTests {
     }
 
     [Fact]
-    public void ShouldEvaluateFloatNumber() {
-        var v = Evaluator.ToFunc<float>("42.4242");
-        Assert.Equal(42.4242, v(), 1);
+    public void ShouldEvaluateDoubleNumber() {
+        var v = Evaluator.ToFunc<double>("42.4242");
+        Assert.Equal(42.4242, v(), 4);
+    }
+
+    [Fact]
+    public void ShouldMixFloatParameterWithDoubleLiteral() {
+        // Default fractional literal is double; a float input widens at the binary op (same as C#).
+        var v = Evaluator.ToFunc<float, double>("x => x + 1.5");
+        Assert.Equal(3.5, v(2.0f), 4);
     }
 
     [Fact]
@@ -105,6 +112,40 @@ public class EvaluatorTests {
     }
 
     [Fact]
+    public void ShouldAcceptUnicodeIdentifiers() {
+        var v = Evaluator.ToFunc<int>("şehir",
+            new Dictionary<string, object?> { { "şehir", 42 } });
+        Assert.Equal(42, v());
+
+        var v2 = Evaluator.ToFunc<int>("ğünÜş1",
+            new Dictionary<string, object?> { { "ğünÜş1", 7 } });
+        Assert.Equal(7, v2());
+    }
+
+    [Fact]
+    public void ShouldThrowInvalidSyntaxOnIntegerOverflow() {
+        Assert.Throws<InvalidSyntaxException>(() => Evaluator.ToFunc<int>("9999999999"));
+    }
+
+    [Fact]
+    public void ShouldParseNumbersRegardlessOfThreadCulture() {
+        var original = Thread.CurrentThread.CurrentCulture;
+        try {
+            Thread.CurrentThread.CurrentCulture = new CultureInfo("tr-TR");
+
+            // '.' is always decimal separator; ',' is always argument separator.
+            var v1 = Evaluator.ToFunc<double>("3.14");
+            Assert.Equal(3.14, v1(), 4);
+
+            var v2 = Evaluator.ToFunc<int[]>("new[] { 1, 2, 3 }");
+            Assert.Equal(new[] { 1, 2, 3 }, v2());
+        }
+        finally {
+            Thread.CurrentThread.CurrentCulture = original;
+        }
+    }
+
+    [Fact]
     public void ShouldUnwrapNullableValueTypeForMemberAccess() {
         var row = new NullableRow { OrderedAt = new DateTime(2026, 4, 1) };
 
@@ -147,6 +188,19 @@ public class EvaluatorTests {
 
         Assert.Throws<InvalidTokenException>(() =>
             Evaluator.ToFunc<NullableRow, object>("r => r.OrderedAt.NoSuchMethod()"));
+    }
+
+    [Fact]
+    public void ShouldRespectUnaryPrecedenceOverBinary() {
+        // -2 + 3 must parse as (-2) + 3 == 1, NOT as -(2 + 3) == -5
+        var v1 = Evaluator.ToFunc<int>("-2 + 3");
+        Assert.Equal(1, v1());
+
+        var v2 = Evaluator.ToFunc<int>("-2 * 3");
+        Assert.Equal(-6, v2());
+
+        var v3 = Evaluator.ToFunc<bool>("!true && false");
+        Assert.False(v3());
     }
 
     [Fact]
