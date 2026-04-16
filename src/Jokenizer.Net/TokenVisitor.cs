@@ -139,16 +139,32 @@ public class TokenVisitor {
 
     // ReSharper disable once UnusedParameter.Global
     protected Expression GetMember(Expression owner, string name, ParameterExpression[] parameters) {
-        var prop = Settings.IgnoreMemberCase
-            ? owner.Type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
-            : owner.Type.GetProperty(name);
+        var flags = BindingFlags.Public | BindingFlags.Instance
+                    | (Settings.IgnoreMemberCase ? BindingFlags.IgnoreCase : 0);
+
+        var prop = owner.Type.GetProperty(name, flags);
         if (prop != null)
             return Expression.Property(owner, prop);
 
-        var field = Settings.IgnoreMemberCase
-         ? owner.Type.GetField(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
-         : owner.Type.GetField(name);
-        return field != null ? Expression.Field(owner, field) : CreateIndexer(owner, Expression.Constant(name));
+        var field = owner.Type.GetField(name, flags);
+        if (field != null)
+            return Expression.Field(owner, field);
+
+        // Dynamic-LINQ convention: member lookup on Nullable<T> auto-unwraps to T via .Value
+        // so "OrderedAt.Year" on DateTime? emits "OrderedAt.Value.Year". C# would reject this
+        // but query authors consistently expect the convenience.
+        var underlying = Nullable.GetUnderlyingType(owner.Type);
+        if (underlying != null) {
+            var underlyingProp = underlying.GetProperty(name, flags);
+            if (underlyingProp != null)
+                return Expression.Property(Expression.Property(owner, "Value"), underlyingProp);
+
+            var underlyingField = underlying.GetField(name, flags);
+            if (underlyingField != null)
+                return Expression.Field(Expression.Property(owner, "Value"), underlyingField);
+        }
+
+        return CreateIndexer(owner, Expression.Constant(name));
     }
 
     protected virtual Expression VisitObject(ObjectToken token, ParameterExpression[] parameters) {
@@ -235,37 +251,155 @@ public class TokenVisitor {
 
         if (!hasLambda) {
             var method = owner.Type.GetMethod(methodName, methodArgs.Select(m => m!.Type).ToArray());
-            if (method != null && TryBuildCall(owner, method, method.GetParameters(), methodArgs, args, false, parameters, out var result))
+            if (method != null && TryBuildInstanceCall(owner, method, methodArgs, args, parameters, out var result))
                 return result!;
         }
 
         foreach (var method in owner.Type.GetMethods().Where(m => m.Name == methodName)) {
-            if (TryBuildCall(owner, method, method.GetParameters(), methodArgs, args, false, parameters, out var result))
+            if (TryBuildInstanceCall(owner, method, methodArgs, args, parameters, out var result))
                 return result!;
         }
 
-        foreach (var (m, p) in ExtensionMethods.Search(owner.Type, methodName)) {
-            if (TryBuildCall(owner, m, p, methodArgs,  args, true, parameters, out var result))
+        foreach (var candidate in ExtensionMethods.Search(owner.Type, methodName)) {
+            if (TryBuildExtensionCall(owner, candidate, methodArgs, args, parameters, out var result))
                 return result!;
+        }
+
+        // Dynamic-LINQ convention: method lookup on Nullable<T> auto-unwraps to T via .Value
+        // so "OrderedAt.ToString(\"yyyy\")" on DateTime? emits "OrderedAt.Value.ToString(\"yyyy\")".
+        // Only one unwrap level: after the retry the owner's type is T, so the recursion terminates.
+        if (Nullable.GetUnderlyingType(owner.Type) != null) {
+            return GetMethodCall(Expression.Property(owner, "Value"), methodName, args, parameters);
         }
 
         throw new InvalidTokenException($"Could not find instance or extension method for {methodName} for {owner.Type}");
     }
 
-    private bool TryBuildCall(Expression owner, MethodInfo method, IReadOnlyList<ParameterInfo> prms,
-                              Expression?[] args, Token[] tokens, bool isExtension,
-                              ParameterExpression[] parameters, out MethodCallExpression? result) {
+    private bool TryBuildInstanceCall(Expression owner, MethodInfo method, Expression?[] args, Token[] tokens,
+                                      ParameterExpression[] parameters, out MethodCallExpression? result) {
         result = null;
         try {
-            result = BuildCall(owner, method, prms, args, tokens, isExtension, parameters);
+            var prms = method.GetParameters();
+            var prmTypes = prms.Select(p => p.ParameterType).ToArray();
+            result = BuildCall(owner, method, prms, prmTypes, args, tokens, isExtension: false, parameters);
             return result != null;
         }
-        catch {  // ignored
+        catch {
             return false;
         }
     }
 
-    private MethodCallExpression? BuildCall(Expression owner, MethodInfo method, IReadOnlyList<ParameterInfo> prms,
+    private bool TryBuildExtensionCall(Expression owner, ExtensionMethods.ExtensionCandidate candidate,
+                                       Expression?[] args, Token[] tokens,
+                                       ParameterExpression[] parameters, out MethodCallExpression? result) {
+        result = null;
+
+        var method = candidate.Method;
+        if (!method.IsGenericMethodDefinition) {
+            try {
+                result = BuildCall(owner, method, candidate.RawParameters, candidate.ParameterTypes,
+                                   args, tokens, isExtension: true, parameters);
+                return result != null;
+            }
+            catch (ArgumentException) { return false; }
+            catch (InvalidOperationException) { return false; }
+        }
+
+        // Generic method still needs full type inference from actual arguments.
+        // Only type binding happens here; concrete param-type conversion is deferred to the
+        // final loop once all type parameters are resolved via MakeGenericMethod.
+        var substitution = new Dictionary<Type, Type>(candidate.Substitution);
+        var resolvedArgs = new Expression?[args.Length];
+
+        try {
+            for (var i = 0; i < args.Length; i++) {
+                if (tokens[i] is LambdaToken lt) {
+                    var prmType = ExtensionMethods.Substitute(candidate.ParameterTypes[i], substitution);
+                    // Queryable extensions take Expression<TDelegate>; Enumerable takes TDelegate directly.
+                    var delegateType = UnwrapExpressionDelegate(prmType);
+                    if (!typeof(Delegate).IsAssignableFrom(delegateType))
+                        return false;
+
+                    var invoke = delegateType.GetMethod("Invoke");
+                    if (invoke == null)
+                        return false;
+
+                    var lambdaPrms = invoke.GetParameters();
+                    if (lambdaPrms.Any(p => p.ParameterType.ContainsGenericParameters))
+                        return false;
+
+                    var visited = VisitLambda(lt, lambdaPrms.Select(p => p.ParameterType), parameters);
+                    resolvedArgs[i] = visited;
+
+                    if (invoke.ReturnType.ContainsGenericParameters
+                        && !ExtensionMethods.BindGenericArgs(invoke.ReturnType, visited.ReturnType, substitution))
+                        return false;
+                }
+                else {
+                    var arg = args[i]!;
+                    if (!ExtensionMethods.BindGenericArgs(candidate.ParameterTypes[i], arg.Type, substitution))
+                        return false;
+                    resolvedArgs[i] = arg;
+                }
+            }
+
+            var typeArgs = method.GetGenericArguments();
+            var concrete = new Type[typeArgs.Length];
+            for (var i = 0; i < typeArgs.Length; i++) {
+                if (!substitution.TryGetValue(typeArgs[i], out var t))
+                    return false;
+                concrete[i] = t;
+            }
+
+            var specialized = method.MakeGenericMethod(concrete);
+            var finalPrms = specialized.GetParameters();
+            var finalCallArgs = new Expression[args.Length];
+            for (var i = 0; i < args.Length; i++) {
+                var targetType = finalPrms[i + 1].ParameterType;
+                var converted = AdaptArgument(resolvedArgs[i]!, targetType);
+                if (converted == null) return false;
+                finalCallArgs[i] = converted;
+            }
+
+            result = Expression.Call(null, specialized, new[] { owner }.Concat(finalCallArgs));
+            return true;
+        }
+        catch (ArgumentException) { return false; }
+        catch (InvalidOperationException) { return false; }
+    }
+
+    // Adapts a visited argument expression to the target parameter type:
+    //   - If the arg is a LambdaExpression and target wants Expression<TDelegate>, wrap via Quote.
+    //   - If types already match, return as-is.
+    //   - If convertible (numeric widening / assignable), emit Convert.
+    //   - Otherwise signal mismatch (null).
+    private static Expression? AdaptArgument(Expression arg, Type targetType) {
+        if (arg is LambdaExpression lambda
+            && targetType.IsGenericType
+            && !targetType.IsGenericTypeDefinition
+            && targetType.GetGenericTypeDefinition() == typeof(Expression<>)) {
+            return Expression.Quote(lambda);
+        }
+
+        if (arg.Type == targetType)
+            return arg;
+
+        if (Helper.CanConvert(targetType, arg.Type) || targetType.IsAssignableFrom(arg.Type))
+            return Expression.Convert(arg, targetType);
+
+        return null;
+    }
+
+    private static Type UnwrapExpressionDelegate(Type type) {
+        if (type.IsGenericType && !type.IsGenericTypeDefinition
+            && type.GetGenericTypeDefinition() == typeof(Expression<>)) {
+            return type.GetGenericArguments()[0];
+        }
+        return type;
+    }
+
+    private MethodCallExpression? BuildCall(Expression owner, MethodInfo method,
+                                            IReadOnlyList<ParameterInfo> prms, IReadOnlyList<Type> prmTypes,
                                             Expression?[] args, Token[] tokens, bool isExtension,
                                             ParameterExpression[] parameters) {
         var isArgumentCountCorrect = prms.Count == args.Length;
@@ -274,27 +408,20 @@ public class TokenVisitor {
             return null;
 
         for (var i = 0; i < args.Length; i++) {
-            var prm = prms[i];
+            var prmType = prmTypes[i];
 
             if (tokens[i] is LambdaToken lt) {
-                if (!typeof(Delegate).IsAssignableFrom(prm.ParameterType))
+                var delegateType = UnwrapExpressionDelegate(prmType);
+                if (!typeof(Delegate).IsAssignableFrom(delegateType) || delegateType.ContainsGenericParameters)
                     return null;
-                var lambdaPrms = prm.ParameterType.GetMethod("Invoke")!.GetParameters();
+
+                var lambdaPrms = delegateType.GetMethod("Invoke")!.GetParameters();
                 args[i] = VisitLambda(lt, lambdaPrms.Select(p => p.ParameterType), parameters);
             }
-            else {
-                // if token is not lambda, it must have been visited and arg must be generated
-                var arg = args[i]!;
 
-                // we also check if the arg is assignable to prm
-                if (arg.Type == prm.ParameterType)
-                    continue;
-                if (!Helper.CanConvert(prm.ParameterType, arg.Type))
-                    return null;
-
-                // if it can be assignable but not the same type, we cast it to the target type
-                args[i] = Expression.Convert(arg, prm.ParameterType);
-            }
+            var adapted = AdaptArgument(args[i]!, prmType);
+            if (adapted == null) return null;
+            args[i] = adapted;
         }
 
         if (isExtraParameterWithDefault) {

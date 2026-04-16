@@ -1,9 +1,12 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
+using System.Reflection.Emit;
 using System.Threading;
 using Xunit;
 
@@ -13,6 +16,17 @@ using Fixture;
 using Tokens;
 
 public class EvaluatorTests {
+
+    public sealed class StaticRow {
+        public string Region { get; set; } = "";
+        public double Amount { get; set; }
+    }
+
+    public sealed class NullableRow {
+        public string? Region { get; set; }
+        public DateTime? OrderedAt { get; set; }
+        public int? Count { get; set; }
+    }
 
     public EvaluatorTests() {
         Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
@@ -88,6 +102,51 @@ public class EvaluatorTests {
         Assert.False(v());
 
         Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda<bool>(new UnaryToken('/', new LiteralToken(1)), Settings.Default));
+    }
+
+    [Fact]
+    public void ShouldUnwrapNullableValueTypeForMemberAccess() {
+        var row = new NullableRow { OrderedAt = new DateTime(2026, 4, 1) };
+
+        // "OrderedAt.Year" on DateTime? must emit OrderedAt.Value.Year
+        var v = Evaluator.ToFunc<NullableRow, int>("r => r.OrderedAt.Year");
+        Assert.Equal(2026, v(row));
+    }
+
+    [Fact]
+    public void ShouldUnwrapNullableValueTypeForMethodCall() {
+        var row = new NullableRow { OrderedAt = new DateTime(2026, 4, 1) };
+
+        // Nullable<DateTime> has no ToString(string) overload; must unwrap to DateTime
+        var v = Evaluator.ToFunc<NullableRow, string>("r => r.OrderedAt.ToString(\"yyyy\")");
+        Assert.Equal("2026", v(row));
+    }
+
+    [Fact]
+    public void ShouldPreferNullableMembersWhenPresent() {
+        var row = new NullableRow { OrderedAt = new DateTime(2026, 4, 1) };
+
+        // HasValue exists on Nullable<T> itself — must not unwrap to DateTime
+        var v1 = Evaluator.ToFunc<NullableRow, bool>("r => r.OrderedAt.HasValue");
+        Assert.True(v1(row));
+
+        // Value is the Nullable<T> property; direct access works without forced unwrap
+        var v2 = Evaluator.ToFunc<NullableRow, DateTime>("r => r.OrderedAt.Value");
+        Assert.Equal(new DateTime(2026, 4, 1), v2(row));
+
+        // GetValueOrDefault() is defined on Nullable<T>; must not fall through
+        var v3 = Evaluator.ToFunc<NullableRow, DateTime>("r => r.OrderedAt.GetValueOrDefault()");
+        Assert.Equal(new DateTime(2026, 4, 1), v3(row));
+    }
+
+    [Fact]
+    public void ShouldFailCleanlyForNonexistentMemberOnNullable() {
+        // "OrderedAt.Bogus" exists neither on Nullable<DateTime> nor on DateTime — cleanly throw
+        Assert.Throws<InvalidTokenException>(() =>
+            Evaluator.ToFunc<NullableRow, object>("r => r.OrderedAt.Bogus"));
+
+        Assert.Throws<InvalidTokenException>(() =>
+            Evaluator.ToFunc<NullableRow, object>("r => r.OrderedAt.NoSuchMethod()"));
     }
 
     [Fact]
@@ -534,5 +593,166 @@ public class EvaluatorTests {
 
         var v = Evaluator.ToFunc<Supplier, bool>("c => c.SupplierTypes.Contains(4)");
         Assert.False(v(supplier));
+    }
+
+    [Fact]
+    public void ShouldResolveExtensionMethodOnRuntimeEmittedType() {
+        var rowType = EmitRuntimeRowType();
+        var list = BuildRuntimeList(rowType, [10.0, 20.0, 30.0]);
+
+        var enumerableType = typeof(IEnumerable<>).MakeGenericType(rowType);
+        var lambda = Evaluator.ToLambda("items => items.Sum(i => i.Amount)", [enumerableType]);
+        var fn = lambda.Compile();
+        var result = fn.DynamicInvoke(list);
+
+        Assert.Equal(60.0, (double)result!);
+    }
+
+    [Fact]
+    public void ShouldResolveExtensionMethodOnIGroupingOfRuntimeEmittedType() {
+        var rowType = EmitRuntimeRowType();
+        var groupingType = typeof(IGrouping<,>).MakeGenericType(typeof(string), rowType);
+
+        // Mirrors DynamicQueryable's projection lambda over a grouping: g => g.Sum(...)
+        var lambda = Evaluator.ToLambda("g => g.Sum(i => i.Amount)", [groupingType]);
+
+        Assert.NotNull(lambda);
+        Assert.Equal(typeof(double), lambda.Body.Type);
+    }
+
+    // Compile-time (a) control for the runtime-emit (b) test below.
+    // If both (a) and (b) were red before the fix, the bug was in generic resolution generally — not emit-specific.
+    // After fix, both must be green and resolve to an IQueryable-returning call (no silent Enumerable fallback).
+    [Fact]
+    public void ShouldGroupByCompileTimeTypeAndSumOverGrouping() {
+        var data = new List<StaticRow> {
+            new() { Region = "A", Amount = 10.0 },
+            new() { Region = "B", Amount = 20.0 },
+            new() { Region = "A", Amount = 30.0 }
+        };
+
+        var groupByLambda = Evaluator.ToLambda<IEnumerable<StaticRow>, IEnumerable<IGrouping<string, StaticRow>>>(
+            "rows => rows.GroupBy(r => r.Region)");
+        var groupBy = groupByLambda.Compile();
+        var grouped = groupBy(data);
+
+        var sumLambda = Evaluator.ToLambda<IEnumerable<IGrouping<string, StaticRow>>, double>(
+            "groups => groups.Sum(g => g.Sum(i => i.Amount))");
+        var sumFn = sumLambda.Compile();
+        var total = sumFn(grouped);
+
+        Assert.Equal(60.0, total);
+    }
+
+    // Queryable-path assertion: when owner is IQueryable<T>, resolution must prefer Queryable.GroupBy
+    // (not silently fall back to Enumerable.GroupBy — that would break real IQueryable providers).
+    [Fact]
+    public void ShouldPreferQueryableOverEnumerableForIQueryableOwner_CompileTime() {
+        var lambda = Evaluator.ToLambda<IQueryable<StaticRow>, IQueryable<IGrouping<string, StaticRow>>>(
+            "q => q.GroupBy(r => r.Region)");
+
+        var body = Assert.IsAssignableFrom<MethodCallExpression>(lambda.Body);
+        Assert.Equal(typeof(Queryable), body.Method.DeclaringType);
+        Assert.True(typeof(IQueryable).IsAssignableFrom(lambda.Body.Type));
+    }
+
+    [Fact]
+    public void ShouldPreferQueryableOverEnumerableForIQueryableOwner_RuntimeEmitted() {
+        var rowType = EmitRuntimeRowType("Region", typeof(string), "Amount", typeof(double));
+        var queryableType = typeof(IQueryable<>).MakeGenericType(rowType);
+
+        var lambda = Evaluator.ToLambda("q => q.GroupBy(r => r.Region)", [queryableType]);
+
+        var body = Assert.IsAssignableFrom<MethodCallExpression>(lambda.Body);
+        Assert.Equal(typeof(Queryable), body.Method.DeclaringType);
+        Assert.True(typeof(IQueryable).IsAssignableFrom(lambda.Body.Type));
+    }
+
+    [Fact]
+    public void ShouldGroupByRuntimeEmittedTypeAndSumOverGrouping() {
+        var rowType = EmitRuntimeRowType("Region", typeof(string), "Amount", typeof(double));
+        var list = BuildRuntimeListWithFields(rowType,
+            [("A", 10.0), ("B", 20.0), ("A", 30.0)]);
+
+        var enumerableType = typeof(IEnumerable<>).MakeGenericType(rowType);
+
+        // Parse GroupBy → IEnumerable<IGrouping<string, rowType>>
+        var groupByLambda = Evaluator.ToLambda("rows => rows.GroupBy(r => r.Region)", [enumerableType]);
+        var groupBy = groupByLambda.Compile();
+        var grouped = groupBy.DynamicInvoke(list)!;
+
+        var groupingType = typeof(IGrouping<,>).MakeGenericType(typeof(string), rowType);
+        var projectionInput = typeof(IEnumerable<>).MakeGenericType(groupingType);
+
+        var sumLambda = Evaluator.ToLambda("groups => groups.Sum(g => g.Sum(i => i.Amount))", [projectionInput]);
+        var sumFn = sumLambda.Compile();
+        var total = sumFn.DynamicInvoke(grouped);
+
+        Assert.Equal(60.0, (double)total!);
+    }
+
+    private static Type EmitRuntimeRowType() => EmitRuntimeRowType("Amount", typeof(double));
+
+    private static Type EmitRuntimeRowType(params object[] nameTypePairs) {
+        var asmName = new AssemblyName("RuntimeTypes_Test_" + Guid.NewGuid().ToString("N"));
+        var asm = AssemblyBuilder.DefineDynamicAssembly(asmName, AssemblyBuilderAccess.Run);
+        var mod = asm.DefineDynamicModule("M");
+        var tb = mod.DefineType("DynamicRow", TypeAttributes.Public | TypeAttributes.Class);
+
+        for (var i = 0; i < nameTypePairs.Length; i += 2) {
+            DefineAutoProperty(tb, (string)nameTypePairs[i], (Type)nameTypePairs[i + 1]);
+        }
+
+        return tb.CreateType()!;
+    }
+
+    private static void DefineAutoProperty(TypeBuilder tb, string name, Type type) {
+        var field = tb.DefineField("_" + name, type, FieldAttributes.Private);
+        var prop = tb.DefineProperty(name, PropertyAttributes.None, type, null);
+
+        const MethodAttributes accessorAttrs =
+            MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig;
+
+        var getter = tb.DefineMethod("get_" + name, accessorAttrs, type, Type.EmptyTypes);
+        var getIl = getter.GetILGenerator();
+        getIl.Emit(OpCodes.Ldarg_0);
+        getIl.Emit(OpCodes.Ldfld, field);
+        getIl.Emit(OpCodes.Ret);
+
+        var setter = tb.DefineMethod("set_" + name, accessorAttrs, null, [type]);
+        var setIl = setter.GetILGenerator();
+        setIl.Emit(OpCodes.Ldarg_0);
+        setIl.Emit(OpCodes.Ldarg_1);
+        setIl.Emit(OpCodes.Stfld, field);
+        setIl.Emit(OpCodes.Ret);
+
+        prop.SetGetMethod(getter);
+        prop.SetSetMethod(setter);
+    }
+
+    private static IList BuildRuntimeList(Type rowType, double[] amounts) {
+        var listType = typeof(List<>).MakeGenericType(rowType);
+        var list = (IList)Activator.CreateInstance(listType)!;
+        var amountProp = rowType.GetProperty("Amount")!;
+        foreach (var amount in amounts) {
+            var row = Activator.CreateInstance(rowType)!;
+            amountProp.SetValue(row, amount);
+            list.Add(row);
+        }
+        return list;
+    }
+
+    private static IList BuildRuntimeListWithFields(Type rowType, (string Region, double Amount)[] rows) {
+        var listType = typeof(List<>).MakeGenericType(rowType);
+        var list = (IList)Activator.CreateInstance(listType)!;
+        var regionProp = rowType.GetProperty("Region")!;
+        var amountProp = rowType.GetProperty("Amount")!;
+        foreach (var r in rows) {
+            var row = Activator.CreateInstance(rowType)!;
+            regionProp.SetValue(row, r.Region);
+            amountProp.SetValue(row, r.Amount);
+            list.Add(row);
+        }
+        return list;
     }
 }
