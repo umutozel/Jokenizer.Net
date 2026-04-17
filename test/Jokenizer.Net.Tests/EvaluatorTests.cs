@@ -139,6 +139,15 @@ public class EvaluatorTests {
 
             var v2 = Evaluator.ToFunc<int[]>("new[] { 1, 2, 3 }");
             Assert.Equal(new[] { 1, 2, 3 }, v2());
+
+            // TR-style "42,42" must NOT be parsed as the decimal 42.42;
+            // the comma is an argument separator, so this is two distinct integers.
+            var v3 = Evaluator.ToFunc<int[]>("new[] { 42, 42 }");
+            Assert.Equal(new[] { 42, 42 }, v3());
+
+            // Dot is always the decimal separator; "42.42" must work regardless of TR culture.
+            var v4 = Evaluator.ToFunc<double>("42.42");
+            Assert.Equal(42.42, v4(), 4);
         }
         finally {
             Thread.CurrentThread.CurrentCulture = original;

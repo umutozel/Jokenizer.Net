@@ -38,3 +38,4 @@ coverage.json
 coverage.xml
 lcov.info
 .idea
+.claude/settings.local.json
