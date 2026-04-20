@@ -82,6 +82,13 @@ public class TokenVisitor {
                 owner = Visit(mt.Owner, parameters);
                 methodName = mt.Name;
                 break;
+            case VariableToken vt when TryResolveKnownType(vt.Name, out var knownType): {
+                var ctorArgs = token.Args.Select(a => Visit(a, parameters)).ToArray();
+                var ctor = knownType!.GetConstructor(ctorArgs.Select(a => a.Type).ToArray());
+                if (ctor == null)
+                    throw new InvalidTokenException($"Cannot find constructor for {vt.Name} matching the given arguments");
+                return Expression.New(ctor, ctorArgs);
+            }
             case VariableToken vt when parameters.Count() == 1:
                 owner = parameters.First();
                 methodName = vt.Name;
@@ -91,6 +98,16 @@ public class TokenVisitor {
         }
 
         return GetMethodCall(owner, methodName, token.Args, parameters);
+    }
+
+    private static bool TryResolveKnownType(string name, out Type? type) {
+        type = name switch {
+            "DateTime" => typeof(DateTime),
+            "DateTimeOffset" => typeof(DateTimeOffset),
+            "TimeSpan" => typeof(TimeSpan),
+            _ => null
+        };
+        return type != null;
     }
 
     protected virtual Expression VisitIndexer(IndexerToken token, ParameterExpression[] parameters) {

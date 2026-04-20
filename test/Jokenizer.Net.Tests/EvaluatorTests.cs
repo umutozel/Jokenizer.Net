@@ -818,4 +818,18 @@ public class EvaluatorTests {
         }
         return list;
     }
+
+    [Fact]
+    public void ShouldConstructDateTimeFromConstructorSyntax() {
+        var row = new NullableRow { OrderedAt = new DateTime(2026, 4, 1) };
+
+        var v1 = Evaluator.ToFunc<NullableRow, bool>("r => r.OrderedAt == DateTime(2026, 4, 1)");
+        Assert.True(v1(row));
+
+        var v2 = Evaluator.ToFunc<NullableRow, bool>("r => r.OrderedAt > DateTime(2026, 1, 1)");
+        Assert.True(v2(row));
+
+        var v3 = Evaluator.ToFunc<NullableRow, bool>("r => r.OrderedAt < DateTime(2027, 1, 1)");
+        Assert.True(v3(row));
+    }
 }
