@@ -14,6 +14,9 @@ public class Settings {
     private readonly ConcurrentDictionary<string, object?> _knowns = new();
     public IEnumerable<string> KnownIdentifiers => _knowns.Keys;
 
+    private readonly ConcurrentDictionary<string, Type> _knownTypes = new();
+    public IEnumerable<string> KnownTypeNames => _knownTypes.Keys;
+
     private readonly ConcurrentDictionary<char, UnaryExpressionConverter> _unary = new();
     public IEnumerable<char> UnaryOperators => _unary.Keys;
 
@@ -61,6 +64,28 @@ public class Settings {
     public bool ContainsKnown(string identifier) => _knowns.ContainsKey(identifier);
 
     public bool TryGetKnownValue(string identifier, out object? value) => _knowns.TryGetValue(identifier, out value);
+
+    /// <summary>
+    /// Registers a CLR type whose constructors and static methods become callable
+    /// from inside parsed expressions. Built-in: DateTime, DateTimeOffset, TimeSpan
+    /// are always available; AddKnownType extends the registry. Once registered,
+    /// "TimescaleFunctions.TimeBucket('5 minutes', ts)" parses as a static call,
+    /// and "new MyType(...)" parses as a constructor invocation.
+    /// </summary>
+    public Settings AddKnownType(string name, Type type) {
+        _knownTypes.AddOrUpdate(name, _ => type, (_, _) => type);
+        return this;
+    }
+
+    public bool TryGetKnownType(string name, out Type? type) {
+        if (_knownTypes.TryGetValue(name, out var t)) {
+            type = t;
+            return true;
+        }
+
+        type = null;
+        return false;
+    }
 
     public Settings AddUnaryOperator(char op, ExpressionType type) =>
         AddUnaryOperator(op, DefaultUnaryExpressionConverter(type));

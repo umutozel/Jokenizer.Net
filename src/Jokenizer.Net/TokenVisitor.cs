@@ -78,6 +78,33 @@ public class TokenVisitor {
         string methodName;
 
         switch (token.Callee) {
+            case MemberToken { Owner: VariableToken ovt } mt when TryResolveKnownType(ovt.Name, out var staticType): {
+                // Static method call: TimescaleFunctions.TimeBucket('5 minutes', ts)
+                var callArgs = token.Args.Select(a => Visit(a, parameters)).ToArray();
+                var argTypes = callArgs.Select(a => a.Type).ToArray();
+
+                var staticMethod = staticType!.GetMethod(mt.Name, BindingFlags.Public | BindingFlags.Static,
+                    null, argTypes, null);
+                if (staticMethod == null) {
+                    // Overload-by-arity + assignment-compatible matching (lets int → double widen)
+                    staticMethod = staticType.GetMethods(BindingFlags.Public | BindingFlags.Static)
+                        .FirstOrDefault(m => m.Name == mt.Name
+                                             && m.GetParameters().Length == callArgs.Length
+                                             && m.GetParameters().Zip(argTypes, (p, t) =>
+                                                    p.ParameterType.IsAssignableFrom(t) || Helper.CanConvert(t, p.ParameterType))
+                                                .All(ok => ok));
+                }
+                if (staticMethod == null)
+                    throw new InvalidTokenException($"Cannot find static method {mt.Name} on {ovt.Name}");
+
+                var prms = staticMethod.GetParameters();
+                for (var i = 0; i < callArgs.Length; i++) {
+                    if (callArgs[i].Type != prms[i].ParameterType) {
+                        callArgs[i] = Expression.Convert(callArgs[i], prms[i].ParameterType);
+                    }
+                }
+                return Expression.Call(null, staticMethod, callArgs);
+            }
             case MemberToken mt:
                 owner = Visit(mt.Owner, parameters);
                 methodName = mt.Name;
@@ -100,14 +127,16 @@ public class TokenVisitor {
         return GetMethodCall(owner, methodName, token.Args, parameters);
     }
 
-    private static bool TryResolveKnownType(string name, out Type? type) {
+    private bool TryResolveKnownType(string name, out Type? type) {
         type = name switch {
             "DateTime" => typeof(DateTime),
             "DateTimeOffset" => typeof(DateTimeOffset),
             "TimeSpan" => typeof(TimeSpan),
             _ => null
         };
-        return type != null;
+        if (type != null) return true;
+
+        return Settings.TryGetKnownType(name, out type);
     }
 
     protected virtual Expression VisitIndexer(IndexerToken token, ParameterExpression[] parameters) {

@@ -92,6 +92,28 @@ public class EvaluatorTests {
     }
 
     [Fact]
+    public void ShouldEvaluateStaticMethodOnKnownType() {
+        var settings = new Settings().AddKnownType("MyMath", typeof(MyMath));
+
+        var v1 = Evaluator.ToFunc<double>("MyMath.Square(5)", settings);
+        Assert.Equal(25.0, v1());
+
+        // Overload by arg count
+        var v2 = Evaluator.ToFunc<int>("MyMath.Sum(2, 3)", settings);
+        Assert.Equal(5, v2());
+
+        // String + int args (verifies non-numeric static call)
+        var v3 = Evaluator.ToFunc<string>("MyMath.Format(\"x\", 2)", settings);
+        Assert.Equal("x:2", v3());
+    }
+
+    [Fact]
+    public void ShouldThrowOnUnknownStaticMethod() {
+        var settings = new Settings().AddKnownType("MyMath", typeof(MyMath));
+        Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<int>("MyMath.NotAMethod()", settings));
+    }
+
+    [Fact]
     public void ShouldEvaluateVariable() {
         var v1 = Evaluator.ToFunc<string>("Name", new Dictionary<string, object?> { { "Name", "Rick" } });
         Assert.Equal("Rick", v1());
@@ -832,4 +854,10 @@ public class EvaluatorTests {
         var v3 = Evaluator.ToFunc<NullableRow, bool>("r => r.OrderedAt < DateTime(2027, 1, 1)");
         Assert.True(v3(row));
     }
+}
+
+internal static class MyMath {
+    public static double Square(double x) => x * x;
+    public static int Sum(int a, int b) => a + b;
+    public static string Format(string label, int n) => $"{label}:{n}";
 }
