@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Jokenizer.Net;
 
@@ -116,11 +117,28 @@ public class Settings {
     private static UnaryExpressionConverter DefaultUnaryExpressionConverter(ExpressionType type) =>
         exp => Expression.MakeUnary(type, exp, null);
 
+    private static readonly MethodInfo _stringCompareMethod =
+        typeof(string).GetMethod(nameof(string.Compare), [typeof(string), typeof(string)])!;
+
     private static BinaryExpressionConverter DefaultBinaryExpressionConverter(ExpressionType type) =>
         (left, right) => {
             FixTypes(ref left, ref right);
+
+            // Ordering comparisons (<, <=, >, >=) are not defined for strings in the
+            // expression API — Expression.MakeBinary throws InvalidOperationException.
+            // Rewrite to the canonical "string.Compare(a, b) OP 0" form, which is also
+            // the shape EF Core recognises and translates to a SQL collation comparison.
+            if (IsOrderingComparison(type) && left.Type == typeof(string) && right.Type == typeof(string))
+                return Expression.MakeBinary(type,
+                    Expression.Call(_stringCompareMethod, left, right),
+                    Expression.Constant(0));
+
             return Expression.MakeBinary(type, left, right);
         };
+
+    private static bool IsOrderingComparison(ExpressionType type) =>
+        type is ExpressionType.LessThan or ExpressionType.LessThanOrEqual
+             or ExpressionType.GreaterThan or ExpressionType.GreaterThanOrEqual;
 
     private static void FixTypes(ref Expression left, ref Expression right) {
         if (left.Type == right.Type)

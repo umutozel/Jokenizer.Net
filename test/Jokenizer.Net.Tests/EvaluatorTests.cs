@@ -428,6 +428,33 @@ public class EvaluatorTests {
     }
 
     [Fact]
+    public void ShouldEvaluateStringOrdinalComparison() {
+        // Ordering operators on strings are undefined in the expression API; the
+        // binary converter rewrites them to "string.Compare(a, b) OP 0".
+        var vLt = Evaluator.ToFunc<Company, bool>("c => c.Name < \"Mango\"");
+        Assert.True(vLt(new Company { Name = "Apple" }));
+        Assert.False(vLt(new Company { Name = "Zebra" }));
+
+        var vGt = Evaluator.ToFunc<Company, bool>("c => c.Name > \"Mango\"");
+        Assert.True(vGt(new Company { Name = "Zebra" }));
+        Assert.False(vGt(new Company { Name = "Apple" }));
+
+        var vLe = Evaluator.ToFunc<Company, bool>("c => c.Name <= \"Mango\"");
+        Assert.True(vLe(new Company { Name = "Mango" }));
+        Assert.True(vLe(new Company { Name = "Apple" }));
+        Assert.False(vLe(new Company { Name = "Zebra" }));
+
+        var vGe = Evaluator.ToFunc<Company, bool>("c => c.Name >= \"Mango\"");
+        Assert.True(vGe(new Company { Name = "Mango" }));
+        Assert.True(vGe(new Company { Name = "Zebra" }));
+        Assert.False(vGe(new Company { Name = "Apple" }));
+
+        // Literal-vs-literal (parameter) operands also rewrite.
+        var vParam = Evaluator.ToFunc<bool>("@0 < @1", "apple", "mango");
+        Assert.True(vParam());
+    }
+
+    [Fact]
     public void ShouldEvaluateBinaryWithIgnoreCase() {
         var ignoreCaseSettings = new Settings { IgnoreMemberCase = true };
 
