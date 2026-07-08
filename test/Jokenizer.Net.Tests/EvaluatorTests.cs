@@ -387,6 +387,37 @@ public class EvaluatorTests {
     }
 
     [Fact]
+    public void ShouldEvaluateTernaryWithBinaryPredicate() {
+        // Regression: ternary must bind loosest. "@0 > 2 ? 42 : 21" used to
+        // parse as "@0 > (2 ? 42 : 21)" — the recursive right-side GetToken
+        // swallowed the ternary — and Expression.Condition then threw
+        // "Argument must be boolean (Parameter 'test')".
+        var v1 = Evaluator.ToFunc<int>("@0 > 2 ? 42 : 21", 5);
+        Assert.Equal(42, v1());
+
+        var v2 = Evaluator.ToFunc<int>("@0 > 2 ? 42 : 21", 1);
+        Assert.Equal(21, v2());
+
+        // Chained binary predicate — both comparisons must join the predicate.
+        var v3 = Evaluator.ToFunc<int>("@0 > 2 && @0 < 10 ? 42 : 21", 5);
+        Assert.Equal(42, v3());
+
+        var v4 = Evaluator.ToFunc<int>("@0 > 2 && @0 < 10 ? 42 : 21", 15);
+        Assert.Equal(21, v4());
+
+        // Arithmetic on the right of the comparison stays inside the predicate.
+        var v5 = Evaluator.ToFunc<int>("@0 > 2 + 1 ? 42 : 21", 4);
+        Assert.Equal(42, v5());
+
+        var v6 = Evaluator.ToFunc<int>("@0 > 2 + 1 ? 42 : 21", 3);
+        Assert.Equal(21, v6());
+
+        // Ternary branches themselves still parse (nested ternary in whenFalse).
+        var v7 = Evaluator.ToFunc<string>("@0 > 10 ? \"big\" : @0 > 5 ? \"mid\" : \"small\"", 7);
+        Assert.Equal("mid", v7());
+    }
+
+    [Fact]
     public void ShouldEvaluateBinary() {
         var v11 = Evaluator.ToFunc<bool>("@0 > @1", 4, 2);
         Assert.True(v11());

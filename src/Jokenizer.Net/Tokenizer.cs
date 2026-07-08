@@ -411,7 +411,7 @@ public class Tokenizer {
         return new TernaryToken(t, whenTrue, whenFalse);
     }
 
-    protected virtual BinaryToken? TryBinary(Token t) {
+    protected virtual Token? TryBinary(Token t) {
         var op = Settings.BinaryOperators.FirstOrDefault(Get);
         if (op == null)
             return null;
@@ -420,6 +420,16 @@ public class Tokenizer {
         return right switch {
             null           => throw new InvalidSyntaxException($"Invalid binary at {Idx}"),
             BinaryToken bt => FixPrecedence(t, op, bt),
+            // Ternary binds loosest: "a > 2 ? x : y" parses the right side as
+            // "2 ? x : y" (recursive GetToken), which would leave the binary as
+            // "a > (2 ? x : y)" and hand a non-boolean predicate to
+            // Expression.Condition. Re-associate so the binary joins the
+            // predicate: "(a > 2) ? x : y". The rebuilt predicate goes through
+            // FixPrecedence like any other right-side binary.
+            TernaryToken tt => new TernaryToken(
+                tt.Predicate is BinaryToken pbt ? FixPrecedence(t, op, pbt) : new BinaryToken(op, t, tt.Predicate),
+                tt.WhenTrue,
+                tt.WhenFalse),
             _              => new BinaryToken(op, t, right)
         };
     }
