@@ -912,6 +912,78 @@ public class EvaluatorTests {
         var v3 = Evaluator.ToFunc<NullableRow, bool>("r => r.OrderedAt < DateTime(2027, 1, 1)");
         Assert.True(v3(row));
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  1.3.5 — innermost-owner walk for unqualified identifiers
+    //  ("owner shadowing"): with multiple in-scope parameters (nested lambdas,
+    //  or multi-arity roots), a bare identifier resolves as a member of the
+    //  innermost param first, falling back to outer params. Enables arithmetic
+    //  aggregates (Sum(A + B)) inside a Select projection over IGrouping<K, T>
+    //  without explicit x. prefixes on every identifier.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public sealed class OuterRow {
+        public int OnlyOnOuter { get; set; }
+        public int Shared { get; set; }
+    }
+
+    public sealed class InnerRow {
+        public int A { get; set; }
+        public int B { get; set; }
+        public int Shared { get; set; }
+    }
+
+    [Fact]
+    public void MultiParam_UnqualifiedIdentifier_ResolvesAgainstInnermostParam() {
+        // Two typeParameters — represents e.g. an aggregate-shorthand lambda
+        // inside a Select over IGrouping. Body "A + B" — both are members of
+        // the INNERMOST param (InnerRow), neither of OuterRow. Must resolve
+        // via innermost walk, not throw "Unknown variable" as pre-1.3.5 did
+        // whenever parameters.Count() != 1.
+        var lambda = Evaluator.ToLambda("A + B", [typeof(OuterRow), typeof(InnerRow)]);
+        var func = (Func<OuterRow, InnerRow, int>)lambda.Compile();
+        Assert.Equal(11, func(new OuterRow(), new InnerRow { A = 1, B = 10 }));
+        Assert.Equal(22, func(new OuterRow(), new InnerRow { A = 2, B = 20 }));
+    }
+
+    [Fact]
+    public void MultiParam_InnermostShadowsOuter_WhenBothHaveMember() {
+        // Both OuterRow and InnerRow expose "Shared". C# scoping rule: the
+        // innermost lambda param shadows outer captures — innermost wins.
+        var lambda = Evaluator.ToLambda("Shared", [typeof(OuterRow), typeof(InnerRow)]);
+        var func = (Func<OuterRow, InnerRow, int>)lambda.Compile();
+        Assert.Equal(100, func(new OuterRow { Shared = 999 }, new InnerRow { Shared = 100 }));
+    }
+
+    [Fact]
+    public void MultiParam_UnknownIdentifier_StillThrows() {
+        // Genuinely unknown identifier — no member "Nonsense" on either param —
+        // should surface as a clear error rather than silently succeeding.
+        // Post-1.3.5, the walk falls through to GetMember(innermost) which
+        // attempts the indexer path and throws "Cannot find indexer" for
+        // non-indexable types. Same throw shape as pre-1.3.5's single-param
+        // scenario when a member was missing on the sole owner.
+        Assert.Throws<InvalidTokenException>(() =>
+            Evaluator.ToLambda("Nonsense", [typeof(OuterRow), typeof(InnerRow)]));
+    }
+
+    [Fact]
+    public void SingleParam_BackwardCompat_MemberFallback() {
+        // Historical single-param behavior: bare identifier binds to the sole
+        // in-scope param. Innermost-walk preserves this — Length == 1 walk
+        // hits the one param first and last.
+        var f = Evaluator.ToFunc<InnerRow, int>("A + B");
+        Assert.Equal(30, f(new InnerRow { A = 10, B = 20 }));
+    }
+
+    [Fact]
+    public void NoParams_BareIdentifier_ThrowsUnknownVariable() {
+        // Root-level with no typeParameters is wrapped by Process into an
+        // arity-zero lambda. A bare identifier that isn't a Variables entry
+        // nor Math/DateTime has nothing to bind to → clear throw.
+        var ex = Assert.Throws<InvalidTokenException>(() => Evaluator.ToLambda("Unknown", (IEnumerable<Type>?)null));
+        Assert.Contains("Unknown", ex.Message);
+    }
 }
 
 internal static class MyMath {

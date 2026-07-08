@@ -185,6 +185,23 @@ public class TokenVisitor {
 
     // ReSharper disable once UnusedParameter.Global
     protected Expression GetMember(Expression owner, string name, ParameterExpression[] parameters) {
+        var member = TryGetMember(owner, name);
+        if (member != null) return member;
+
+        // Last resort: treat name as an indexer key on the owner. CreateIndexer
+        // throws with a specific message when no indexer exists, so callers get
+        // a clear error either way.
+        return CreateIndexer(owner, Expression.Constant(name));
+    }
+
+    /// <summary>
+    /// Non-throwing member lookup on <paramref name="owner"/>. Returns the
+    /// property / field access expression when found (including the
+    /// Nullable<T>-underlying unwrap convention shared with GetMember), or
+    /// null when the name is not a member. Does NOT attempt indexer fallback —
+    /// use <see cref="GetMember"/> when you want that final attempt.
+    /// </summary>
+    protected Expression? TryGetMember(Expression owner, string name) {
         var flags = BindingFlags.Public | BindingFlags.Instance
                     | (Settings.IgnoreMemberCase ? BindingFlags.IgnoreCase : 0);
 
@@ -210,7 +227,7 @@ public class TokenVisitor {
                 return Expression.Field(Expression.Property(owner, "Value"), underlyingField);
         }
 
-        return CreateIndexer(owner, Expression.Constant(name));
+        return null;
     }
 
     protected virtual Expression VisitObject(ObjectToken token, ParameterExpression[] parameters) {
@@ -259,10 +276,28 @@ public class TokenVisitor {
                 return Expression.Parameter(typeof(DateTime));
         }
 
-        if (parameters.Count() != 1) throw new InvalidTokenException($"Unknown variable {name}");
+        // Unqualified identifier resolved as an implicit member on one of the
+        // in-scope parameters. Walk innermost → outermost so nested lambdas
+        // shadow the outer scope, matching C#'s natural scoping rules —
+        // "x => x.Price + Stock" inside a Select over IGrouping<K, Product>
+        // binds Stock to x.Stock, not to Grouping.Stock (which would throw).
+        // Indexer fallback is intentionally deferred to the last-resort
+        // GetMember call so a real member on an OUTER param isn't shadowed
+        // by an indexer on an INNER one.
+        if (parameters.Length == 0)
+            throw new InvalidTokenException($"Unknown variable {name}");
 
-        var owner = parameters.First();
-        return GetMember(owner, name, parameters);
+        for (var i = parameters.Length - 1; i >= 0; i--) {
+            var member = TryGetMember(parameters[i], name);
+            if (member != null) return member;
+        }
+
+        // None of the params has the name as a plain member; fall through to
+        // the last-resort GetMember on the innermost param, which attempts an
+        // indexer and throws a clear "Cannot find indexer" or a resolved
+        // indexer access. Preserves the pre-1.3.5 behavior for indexed types
+        // (Dictionary, ExpandoObject).
+        return GetMember(parameters[parameters.Length - 1], name, parameters);
     }
 
     protected Expression GetBinary(string op, Expression left, Expression right) {
