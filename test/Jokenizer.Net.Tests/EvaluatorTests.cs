@@ -315,6 +315,22 @@ public class EvaluatorTests {
     }
 
     [Fact]
+    public void ShouldReportMissingMemberOnIndexerlessType() {
+        // Missing member on a type WITHOUT a default indexer must surface a
+        // member-focused error naming the type's actual members — the old
+        // "Cannot find indexer on type X" message pointed debuggers at the
+        // wrong layer (real-world hit: dynamic LINQ over projected/anonymous
+        // rows, where the expression referenced a column the projection
+        // dropped). Indexer-carrying types (Company) and ExpandoObject keep
+        // their dict-fallback behaviour — covered by ShouldEvaluateIndexer.
+        var ex = Assert.Throws<InvalidTokenException>(() => Evaluator.ToFunc<StaticRow, string>("Missing"));
+        Assert.Contains("Cannot resolve member 'Missing'", ex.Message);
+        Assert.Contains(nameof(StaticRow), ex.Message);
+        Assert.Contains("Region", ex.Message);   // available members listed
+        Assert.Contains("Amount", ex.Message);
+    }
+
+    [Fact]
     public void ShouldEvaluateLambda() {
         var v1 = Evaluator.ToFunc<int, int, bool>("(a, b) => a < b");
         Assert.True(v1(1, 2));

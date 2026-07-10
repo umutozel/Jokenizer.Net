@@ -188,10 +188,29 @@ public class TokenVisitor {
         var member = TryGetMember(owner, name);
         if (member != null) return member;
 
-        // Last resort: treat name as an indexer key on the owner. CreateIndexer
-        // throws with a specific message when no indexer exists, so callers get
-        // a clear error either way.
-        return CreateIndexer(owner, Expression.Constant(name));
+        // Last resort: dict-shaped rows (ExpandoObject / anything with a default
+        // indexer) resolve members through the indexer. Typed rows without one
+        // used to fall into CreateIndexer anyway and die with "Cannot find
+        // indexer on type X" — a misleading message when the real problem is
+        // that `name` isn't a member of the (often projected/anonymous) row
+        // type. Surface THAT instead, with the available members listed so the
+        // caller can see the shape.
+        if (HasDefaultIndexer(owner.Type))
+            return CreateIndexer(owner, Expression.Constant(name));
+
+        var available = owner.Type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(p => p.Name)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        throw new InvalidTokenException(
+            $"Cannot resolve member '{name}' on type {owner.Type.Name}."
+            + (available.Length > 0 ? $" Available members: {string.Join(", ", available)}" : ""));
+    }
+
+    private static bool HasDefaultIndexer(Type type) {
+        if (type == typeof(ExpandoObject)) return true;
+        var defaultMemberAttr = (DefaultMemberAttribute?)type.GetCustomAttribute(typeof(DefaultMemberAttribute));
+        return type.GetProperty(defaultMemberAttr?.MemberName ?? "Item") != null;
     }
 
     /// <summary>
@@ -227,6 +246,10 @@ public class TokenVisitor {
                 return Expression.Field(Expression.Property(owner, "Value"), underlyingField);
         }
 
+        // Non-throwing by contract: the innermost-owner walk probes multiple
+        // candidate owners and moves on when a name doesn't resolve here.
+        // The member-focused terminal error (with available-members listing)
+        // lives in GetMember's last-resort branch instead.
         return null;
     }
 
