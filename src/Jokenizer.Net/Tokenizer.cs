@@ -481,9 +481,19 @@ public class Tokenizer {
         Settings.TryGetBinaryInfo(leftOp, out var lo);
         Settings.TryGetBinaryInfo(right.Operator, out var ro);
 
-        return ro.Precedence < lo.Precedence
-            ? new BinaryToken(right.Operator, new BinaryToken(leftOp, left, right.Left), right.Right)
-            : new BinaryToken(leftOp, left, right);
+        // Rotate when the right-side operator binds looser (a * (b + c) → (a*b)+c)
+        // OR equally tight — binary operators are left-associative, so "a - b - c"
+        // must become (a-b)-c, not a-(b-c). The rebuilt left side recurses because
+        // the right operand was itself parsed greedily: in "a - b - c - d" the
+        // incoming right is ((b-c)-d) and the new left (a joined with (b-c)) needs
+        // the same left-associative repair.
+        if (ro.Precedence > lo.Precedence)
+            return new BinaryToken(leftOp, left, right);
+
+        var newLeft = right.Left is BinaryToken rbt
+            ? FixPrecedence(left, leftOp, rbt)
+            : (Token)new BinaryToken(leftOp, left, right.Left);
+        return new BinaryToken(right.Operator, newLeft, right.Right);
     }
 
     public static Token? Parse(string exp, Settings? settings = null) => new Tokenizer(exp, settings).GetToken();

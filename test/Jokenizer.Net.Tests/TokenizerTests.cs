@@ -297,6 +297,45 @@ public class TokenizerTests {
         var le3 = re.Right as LiteralToken;
         Assert.Equal(3, le3!.Value);
     }
+
+    [Fact]
+    public void ShouldParseEqualPrecedenceChainsLeftAssociative() {
+        // "a - b - c" must parse as (a - b) - c, not a - (b - c). The greedy
+        // right-side parse builds the whole tail first; FixPrecedence has to
+        // re-associate equal-precedence operators to the left.
+        var e = Tokenizer.Parse<BinaryToken>("a - b - c");
+        Assert.Equal("-", e!.Operator);
+        Assert.Equal(TokenType.Binary, e.Left.Type);
+        Assert.Equal(TokenType.Variable, e.Right.Type);
+        var left = (BinaryToken)e.Left;
+        Assert.Equal("-", left.Operator);
+        Assert.Equal("a", ((VariableToken)left.Left).Name);
+        Assert.Equal("b", ((VariableToken)left.Right).Name);
+        Assert.Equal("c", ((VariableToken)e.Right).Name);
+
+        // Four-element chain: ((a - b) - c) - d — recursion must repair every level.
+        var e4 = Tokenizer.Parse<BinaryToken>("a - b - c - d");
+        Assert.Equal("d", ((VariableToken)e4!.Right).Name);
+        var l3 = (BinaryToken)e4.Left;
+        Assert.Equal("c", ((VariableToken)l3.Right).Name);
+        var l2 = (BinaryToken)l3.Left;
+        Assert.Equal("a", ((VariableToken)l2.Left).Name);
+        Assert.Equal("b", ((VariableToken)l2.Right).Name);
+
+        // Mixed same-tier operators stay left-associative: (a - b) + c.
+        var mixed = Tokenizer.Parse<BinaryToken>("a - b + c");
+        Assert.Equal("+", mixed!.Operator);
+        Assert.Equal("-", ((BinaryToken)mixed.Left).Operator);
+
+        // Higher-precedence islands are preserved: (a + (b * c)) + d.
+        var island = Tokenizer.Parse<BinaryToken>("a + b * c + d");
+        Assert.Equal("+", island!.Operator);
+        Assert.Equal("d", ((VariableToken)island.Right).Name);
+        var innerAdd = (BinaryToken)island.Left;
+        Assert.Equal("+", innerAdd.Operator);
+        Assert.Equal("a", ((VariableToken)innerAdd.Left).Name);
+        Assert.Equal("*", ((BinaryToken)innerAdd.Right).Operator);
+    }
         
     [Fact]
     public void ShouldHandleNullArgument() {
