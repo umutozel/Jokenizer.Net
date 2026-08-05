@@ -19,6 +19,57 @@ public static class Helper {
         return IsImplicitlyConvertible(nonNullableFrom, nonNullableTo);
     }
 
+    /// <summary>
+    /// Can a value of <paramref name="source"/> be used where
+    /// <paramref name="target"/> is expected? Unambiguously named counterpart of
+    /// <see cref="CanConvert"/> (whose parameter order reads differently at its
+    /// two call sites): the direction is always target ← source.
+    /// <para>A nullable source needs a nullable target — otherwise null has
+    /// nowhere to go, and silently dropping that is how a filter starts
+    /// throwing on the first null row.</para>
+    /// </summary>
+    public static bool Accepts(Type target, Type source) {
+        if (target == source) return true;
+        if (target.IsAssignableFrom(source)) return true;
+
+        var targetUnderlying = Nullable.GetUnderlyingType(target);
+        var sourceUnderlying = Nullable.GetUnderlyingType(source);
+        if (sourceUnderlying != null && targetUnderlying == null) return false;
+
+        var from = sourceUnderlying ?? source;
+        var to = targetUnderlying ?? target;
+        if (to.IsEnum) to = Enum.GetUnderlyingType(to);
+
+        return from == to || IsImplicitlyConvertible(from, to);
+    }
+
+    /// <summary>
+    /// The narrowest type that can hold values of BOTH inputs, or null when
+    /// there isn't one. Used for generic type-parameter inference when one
+    /// argument binds the parameter and a later one is wider — e.g.
+    /// <c>[1,2].Contains(longColumn)</c> binds TSource from the array literal
+    /// as <c>int</c>, then meets <c>long?</c>; the common type is <c>long?</c>.
+    /// </summary>
+    public static Type? CommonType(Type a, Type b) {
+        if (a == b) return a;
+        if (Accepts(a, b)) return a;
+        if (Accepts(b, a)) return b;
+
+        // Neither side accepts the other as-is: this is the mixed-nullability
+        // case (int vs long?). Widen AND lift, then verify both fit.
+        var an = Nullable.GetUnderlyingType(a) ?? a;
+        var bn = Nullable.GetUnderlyingType(b) ?? b;
+        if (!an.IsValueType || !bn.IsValueType) return null;
+
+        Type? wider = IsImplicitlyConvertible(an, bn) ? bn
+                    : IsImplicitlyConvertible(bn, an) ? an
+                    : null;
+        if (wider == null) return null;
+
+        var lifted = typeof(Nullable<>).MakeGenericType(wider);
+        return Accepts(lifted, a) && Accepts(lifted, b) ? lifted : null;
+    }
+
     private static bool IsImplicitlyConvertible(Type from, Type to) => _implicitNumericConversions.Contains((from, to));
 
     private static readonly HashSet<(Type, Type)> _implicitNumericConversions = [

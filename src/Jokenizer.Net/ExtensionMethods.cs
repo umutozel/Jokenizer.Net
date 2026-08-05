@@ -251,9 +251,22 @@ public static class ExtensionMethods {
     internal static bool BindGenericArgs(Type paramType, Type argType, Dictionary<Type, Type> map) {
         if (paramType.IsGenericParameter) {
             if (map.TryGetValue(paramType, out var existing)) {
-                return existing == argType
+                if (existing == argType
                     || existing.IsAssignableFrom(argType)
-                    || argType.IsAssignableFrom(existing);
+                    || argType.IsAssignableFrom(existing))
+                    return true;
+
+                // Assignability alone can't reconcile numeric widening or
+                // nullability, so this gate used to reject candidates the
+                // argument adapter would happily have converted — every other
+                // coercion site in the visitor consults Helper, this one didn't.
+                // Re-bind the parameter to the type that holds both; the caller
+                // adapts the already-visited arguments (and the extension's
+                // owner) to it after MakeGenericMethod.
+                var common = Helper.CommonType(existing, argType);
+                if (common == null) return false;
+                map[paramType] = common;
+                return true;
             }
             map[paramType] = argType;
             return true;

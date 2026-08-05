@@ -270,8 +270,23 @@ public class TokenVisitor {
 
     protected virtual Expression VisitArray(ArrayToken token, ParameterExpression[] parameters) {
         var expressions = token.Items.Select(i => Visit(i, parameters)).ToList();
-        var type = expressions.Any() ? expressions[0].Type : typeof(object);
-        return Expression.NewArrayInit(type, expressions);
+        if (expressions.Count == 0)
+            return Expression.NewArrayInit(typeof(object), expressions);
+
+        // The element type is the common type of ALL items, not whatever the
+        // first one happened to be: `[10.5, 99]` is a double[] whose 99 widens,
+        // not a double[] that rejects its own second element. Deliberately NOT
+        // falling back to object[] when there is no common type — that would
+        // turn a nonsense literal into a silently never-matching filter.
+        var type = expressions[0].Type;
+        for (var i = 1; i < expressions.Count; i++) {
+            type = Helper.CommonType(type!, expressions[i].Type)
+                ?? throw new InvalidTokenException(
+                    $"Array items have no common type: {string.Join(", ", expressions.Select(e => e.Type.Name).Distinct())}");
+        }
+
+        var items = expressions.Select(e => e.Type == type ? e : Expression.Convert(e, type));
+        return Expression.NewArrayInit(type, items);
     }
 
     protected virtual Expression VisitTernary(TernaryToken token, ParameterExpression[] parameters) {
@@ -403,10 +418,28 @@ public class TokenVisitor {
             try {
                 result = BuildCall(owner, method, candidate.RawParameters, candidate.ParameterTypes,
                                    args, tokens, isExtension: true, parameters);
-                return result != null;
+                if (result != null) return true;
             }
-            catch (ArgumentException) { return false; }
-            catch (InvalidOperationException) { return false; }
+            catch (ArgumentException) { /* fall through to inference retry */ }
+            catch (InvalidOperationException) { /* fall through to inference retry */ }
+
+            // A candidate whose type parameters were all bound by the OWNER
+            // alone gets specialized before the remaining arguments are seen
+            // (ExtensionMethods.Search). When one of those widens the binding —
+            // `[1,2].Contains(longColumn)` pins TSource=int from the array, then
+            // meets long? — the specialized signature can't fit and the only
+            // conversion left would be a narrowing one. Reopen the definition so
+            // inference can settle on the common type instead.
+            if (!method.IsGenericMethod) return false;
+
+            var definition = method.GetGenericMethodDefinition();
+            var openParams = definition.GetParameters();
+            candidate = new ExtensionMethods.ExtensionCandidate(
+                definition,
+                new ArraySegment<ParameterInfo>(openParams, 1, openParams.Length - 1),
+                openParams.Skip(1).Select(p => p.ParameterType).ToArray(),
+                candidate.Substitution);
+            method = definition;
         }
 
         // Generic method still needs full type inference from actual arguments.
@@ -465,11 +498,57 @@ public class TokenVisitor {
                 finalCallArgs[i] = converted;
             }
 
-            result = Expression.Call(null, specialized, new[] { owner }.Concat(finalCallArgs));
+            // The owner was visited before the type parameters settled, so a
+            // re-bind (see ExtensionMethods.BindGenericArgs) can leave it one
+            // step behind the specialized signature.
+            var adaptedOwner = AdaptOwner(owner, finalPrms[0].ParameterType);
+            if (adaptedOwner == null) return false;
+
+            result = Expression.Call(null, specialized, new[] { adaptedOwner }.Concat(finalCallArgs));
             return true;
         }
         catch (ArgumentException) { return false; }
         catch (InvalidOperationException) { return false; }
+    }
+
+    /// <summary>
+    /// Adapts the extension method's first ("this") argument to the specialized
+    /// signature. Only an array LITERAL can be moved to a wider element type —
+    /// it is re-emitted element by element. Anything else (a column, a
+    /// parameter, a method result) has no safe element-wise conversion, so the
+    /// candidate is abandoned rather than forced.
+    /// </summary>
+    private static Expression? AdaptOwner(Expression owner, Type targetType) {
+        if (targetType.IsAssignableFrom(owner.Type))
+            return owner;
+
+        if (owner is not NewArrayExpression { NodeType: ExpressionType.NewArrayInit } array)
+            return null;
+
+        var element = GetEnumerableElementType(targetType);
+        if (element == null)
+            return null;
+
+        var converted = new List<Expression>(array.Expressions.Count);
+        foreach (var item in array.Expressions) {
+            var adapted = AdaptArgument(item, element);
+            if (adapted == null) return null;
+            converted.Add(adapted);
+        }
+
+        var rebuilt = Expression.NewArrayInit(element, converted);
+        return targetType.IsAssignableFrom(rebuilt.Type) ? rebuilt : null;
+    }
+
+    private static Type? GetEnumerableElementType(Type type) {
+        if (type.IsArray) return type.GetElementType();
+        if (type.IsConstructedGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            return type.GetGenericArguments()[0];
+        foreach (var i in type.GetInterfaces()) {
+            if (i.IsConstructedGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                return i.GetGenericArguments()[0];
+        }
+        return null;
     }
 
     // Adapts a visited argument expression to the target parameter type:
@@ -488,7 +567,13 @@ public class TokenVisitor {
         if (arg.Type == targetType)
             return arg;
 
-        if (Helper.CanConvert(targetType, arg.Type) || targetType.IsAssignableFrom(arg.Type))
+        // Accepts covers the pure nullable lift (T -> T?) that the implicit
+        // numeric table misses: it lists widening pairs only, so identity plus
+        // lifting had no entry and `[10.5].Contains(nullableDoubleColumn)` fell
+        // through as a mismatch.
+        if (Helper.Accepts(targetType, arg.Type)
+            || Helper.CanConvert(targetType, arg.Type)
+            || targetType.IsAssignableFrom(arg.Type))
             return Expression.Convert(arg, targetType);
 
         return null;
