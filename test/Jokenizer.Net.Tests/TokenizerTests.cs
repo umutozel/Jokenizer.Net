@@ -336,6 +336,25 @@ public class TokenizerTests {
         Assert.Equal("a", ((VariableToken)innerAdd.Left).Name);
         Assert.Equal("*", ((BinaryToken)innerAdd.Right).Operator);
     }
+
+    [Fact]
+    public void ShouldOrderBitwiseOperatorsPerJsPrecedence() {
+        // a | b & c → a | (b & c), not (a | b) & c (& tighter than |)
+        var e1 = Tokenizer.Parse<BinaryToken>("a | b & c")!;
+        Assert.Equal("|", e1.Operator);
+        Assert.Equal(TokenType.Binary, e1.Right.Type);
+        Assert.Equal("&", ((BinaryToken)e1.Right).Operator);
+
+        // a ^ b & c → a ^ (b & c)
+        var e2 = Tokenizer.Parse<BinaryToken>("a ^ b & c")!;
+        Assert.Equal("^", e2.Operator);
+        Assert.Equal("&", ((BinaryToken)e2.Right).Operator);
+
+        // a | b ^ c → a | (b ^ c) — equal-tier ^ is tighter than |
+        var e3 = Tokenizer.Parse<BinaryToken>("a | b ^ c")!;
+        Assert.Equal("|", e3.Operator);
+        Assert.Equal("^", ((BinaryToken)e3.Right).Operator);
+    }
         
     [Fact]
     public void ShouldHandleNullArgument() {

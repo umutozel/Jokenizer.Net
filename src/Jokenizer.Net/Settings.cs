@@ -39,9 +39,13 @@ public class Settings {
         AddBinaryOperator("&&", ExpressionType.And, 0);
         AddBinaryOperator("||", ExpressionType.OrElse, 0);
         AddBinaryOperator("??", ExpressionType.Coalesce, 0);
+        // Bitwise tier binds &, ^, | in that order (JS: & > ^ > |).
+        // Fractional slots keep the tier anchored at 1 so custom operators
+        // registered at any integer precedence stay in their original
+        // relative position.
         AddBinaryOperator("|", ExpressionType.Or, 1);
-        AddBinaryOperator("^", ExpressionType.ExclusiveOr, 1);
-        AddBinaryOperator("&", ExpressionType.And, 1);
+        AddBinaryOperator("^", ExpressionType.ExclusiveOr, 1.25);
+        AddBinaryOperator("&", ExpressionType.And, 1.5);
         AddBinaryOperator("==", ExpressionType.Equal, 2);
         AddBinaryOperator("!=", ExpressionType.NotEqual, 2);
         AddBinaryOperator("<=", ExpressionType.LessThanOrEqual, 3);
@@ -101,10 +105,10 @@ public class Settings {
     public bool TryGetUnaryConverter(char op, out UnaryExpressionConverter converter) =>
         _unary.TryGetValue(op, out converter);
 
-    public Settings AddBinaryOperator(string op, ExpressionType type, byte precedence = 7) =>
+    public Settings AddBinaryOperator(string op, ExpressionType type, double precedence = 7) =>
         AddBinaryOperator(op, DefaultBinaryExpressionConverter(type), precedence);
 
-    public Settings AddBinaryOperator(string op, BinaryExpressionConverter converter, byte precedence = 7) {
+    public Settings AddBinaryOperator(string op, BinaryExpressionConverter converter, double precedence = 7) {
         var info = new BinaryOperatorInfo(precedence, converter);
         _binary.AddOrUpdate(op, _ => info, (_, _) => info);
         return this;
